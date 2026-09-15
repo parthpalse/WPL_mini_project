@@ -1,0 +1,7 @@
+flask==3.1.*
+flask-login==0.6.*
+flask-sqlalchemy==3.1.*
+scipy>=1.11
+pulp>=2.7
+requests>=2.31
+pytest>=7.4

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js/auto"></script>
+
+<h2>What-If Simulator</h2>
+<p>Drag the sliders to see how changes affect your surplus and allocation.</p>
+
+<div style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
+    <label>Income (₹): <span id="val-income">{{ initial_data.income }}</span></label>
+    <input type="range" id="sim-income" min="0" max="10000000" step="10000" value="{{ initial_data.income }}" style="width: 100%;">
+    
+    <label>Expenses (₹): <span id="val-expenses">{{ initial_data.expenses }}</span></label>
+    <input type="range" id="sim-expenses" min="0" max="1000000" step="5000" value="{{ initial_data.expenses }}" style="width: 100%;">
+    
+    <label>Risk Tolerance (1-10): <span id="val-risk">5</span></label>
+    <input type="range" id="sim-risk" min="1" max="10" step="1" value="5" style="width: 100%;">
+</div>
+
+<h3 id="surplus-display">Calculated Monthly Surplus: ₹...</h3>
+
+<div style="display: flex; gap: 20px; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 250px;">
+        <h4>Safe</h4>
+        <div style="position: relative; height: 250px; width: 100%;"><canvas id="chart-safe" style="display: block;"></canvas></div>
+    </div>
+    <div style="flex: 1; min-width: 250px;">
+        <h4>Balanced</h4>
+        <div style="position: relative; height: 250px; width: 100%;"><canvas id="chart-balanced" style="display: block;"></canvas></div>
+    </div>
+    <div style="flex: 1; min-width: 250px;">
+        <h4>Growth</h4>
+        <div style="position: relative; height: 250px; width: 100%;"><canvas id="chart-growth" style="display: block;"></canvas></div>
+    </div>
+</div>
+
+<script>
+    const charts = {};
+    const colors = {
+        'Savings': '#3498db',
+        'RD': '#2ecc71',
+        'FD': '#f1c40f',
+        'Debt Fund': '#e67e22',
+        'Equity Fund': '#e74c3c'
+    };
+
+    function initCharts() {
+        ['safe', 'balanced', 'growth'].forEach(strategy => {
+            const ctx = document.getElementById(`chart-${strategy}`).getContext('2d');
+            charts[strategy] = new Chart(ctx, {
+                type: 'pie',
+                data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 1 }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: false }
+            });
+        });
+    }
+
+    let timeout = null;
+    function updateSimulation() {
+        const income = document.getElementById('sim-income').value;
+        const expenses = document.getElementById('sim-expenses').value;
+        const risk = document.getElementById('sim-risk').value;
+        
+        document.getElementById('val-income').innerText = income;
+        document.getElementById('val-expenses').innerText = expenses;
+        document.getElementById('val-risk').innerText = risk;
+
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            fetch('{{ url_for("dashboard.simulate_api") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ income, expenses, risk_score: risk })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('surplus-display').innerText = `Calculated Monthly Surplus: ₹${data.surplus}`;
+                
+                ['safe', 'balanced', 'growth'].forEach(strategy => {
+                    const alloc = data.allocations[strategy] || {};
+                    const labels = Object.keys(alloc);
+                    const values = labels.map(l => alloc[l].percentage);
+                    const bgColors = labels.map(l => colors[l] || '#95a5a6');
+                    
+                    charts[strategy].data.labels = labels;
+                    charts[strategy].data.datasets[0].data = values;
+                    charts[strategy].data.datasets[0].backgroundColor = bgColors;
+                    charts[strategy].update();
+                });
+            });
+        }, 300); // Debounce
+    }
+
+    document.getElementById('sim-income').addEventListener('input', updateSimulation);
+    document.getElementById('sim-expenses').addEventListener('input', updateSimulation);
+    document.getElementById('sim-risk').addEventListener('input', updateSimulation);
+
+    window.onload = () => {
+        initCharts();
+        updateSimulation();
+    };
+</script>
+{% endblock %}

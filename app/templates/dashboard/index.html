@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js/auto"></script>
+
+<h2>Your Financial Dashboard</h2>
+
+<div style="display: flex; gap: 20px; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 300px; background: #e8f4f8; padding: 20px; border-radius: 8px;">
+        <h3>Monthly Surplus: ₹{{ surplus_data.summary.monthly_surplus }}</h3>
+        <details>
+            <summary>See calculation</summary>
+            <ul>
+                <li>Gross Income: ₹{{ surplus_data.tax_result.gross_income }}</li>
+                <li>Total Tax: ₹{{ surplus_data.tax_result.total_tax }}</li>
+                <li>Net Monthly Income: ₹{{ surplus_data.summary.net_monthly_income }}</li>
+                <li>Expenses: ₹{{ surplus_data.summary.total_monthly_expenses }}</li>
+                <li>Emergency Fund Contrib: ₹{{ surplus_data.summary.emergency_fund_monthly }}</li>
+            </ul>
+        </details>
+    </div>
+    
+    <div style="flex: 1; min-width: 300px; background: #fdf5e6; padding: 20px; border-radius: 8px;">
+        <h3>Goal: {{ tier1.goal_name }}</h3>
+        <p>Target: ₹{{ tier1.goal_amount }} in {{ tier1.goal_horizon }} years</p>
+    </div>
+</div>
+
+<h3 style="margin-top: 40px;">Recommended Allocation Strategies</h3>
+{% if surplus_data.summary.surplus_is_positive %}
+<div style="display: flex; gap: 20px; flex-wrap: wrap;">
+    {% for strategy, alloc in allocations.items() %}
+    <div style="flex: 1; min-width: 250px; background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
+        <h4 style="text-transform: capitalize;">{{ strategy }} Strategy</h4>
+        <div style="position: relative; height: 250px; width: 100%;">
+            <canvas id="chart-{{ strategy }}" style="display: block;"></canvas>
+        </div>
+        <ul style="margin-top: 15px; padding-left: 20px;">
+            {% for prod, details in alloc.items() %}
+            <li>{{ prod }}: {{ details.percentage }}% (₹{{ details.amount }})</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert">
+    <strong>Shortfall Detected:</strong> Your estimated expenses and emergency fund contributions exceed your net income. We cannot recommend investment strategies until you have a positive monthly surplus. 
+    <br><br>
+    <em>Tip: Review your expenses or consider adjusting your goals to build a sustainable surplus.</em>
+</div>
+{% endif %}
+
+<h3 style="margin-top: 40px;">AI Explanation</h3>
+<div id="ai-explanation" style="background: #e6f7ff; padding: 20px; border-radius: 8px; border: 1px solid #91d5ff;">
+    <p><em>Generating your personalized plan explanation...</em></p>
+</div>
+
+<script>
+    const allocations = {{ allocations | tojson }};
+    const surplus_data = {{ surplus_data | tojson }};
+    
+    // Helper to generate colors
+    const colors = {
+        'Savings': '#3498db',
+        'RD': '#2ecc71',
+        'FD': '#f1c40f',
+        'Debt Fund': '#e67e22',
+        'Equity Fund': '#e74c3c'
+    };
+
+    Object.keys(allocations).forEach(strategy => {
+        const data = allocations[strategy];
+        const labels = Object.keys(data);
+        const values = labels.map(l => data[l].percentage);
+        const bgColors = labels.map(l => colors[l] || '#95a5a6');
+
+        const canvas = document.getElementById(`chart-${strategy}`);
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: bgColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false
+                }
+            });
+        }
+    });
+
+    // Fetch AI Explanation
+    const engineOutput = {
+        monthly_surplus: surplus_data.summary.monthly_surplus,
+        safe: allocations.safe,
+        balanced: allocations.balanced,
+        growth: allocations.growth
+    };
+
+    fetch('{{ url_for("dashboard.explain") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(engineOutput)
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('ai-explanation').innerHTML = `<p>${data.explanation.replace(/\n/g, '<br>')}</p>`;
+    })
+    .catch(error => {
+        document.getElementById('ai-explanation').innerHTML = `<p style="color: red;">Failed to load explanation.</p>`;
+    });
+</script>
+
+{% endblock %}

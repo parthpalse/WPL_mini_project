@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>BankEase - Quick Intake (Tier 1)</h2>
+<p>Let's get a rough estimate of your financial health.</p>
+
+<form method="POST" action="{{ url_for('profile.tier1_submit') }}">
+    <label for="income">Annual Gross Income (INR):</label>
+    <input type="number" id="income" name="income" placeholder="e.g. 1500000" required min="0">
+
+    <label for="expenses">Estimated Monthly Expenses (INR):</label>
+    <input type="number" id="expenses" name="expenses" placeholder="e.g. 40000" required min="0">
+
+    <label for="goal_name">What is your primary financial goal?</label>
+    <input type="text" id="goal_name" name="goal_name" placeholder="e.g. Buy a house" required>
+
+    <label for="goal_amount">Target Amount for Goal (INR):</label>
+    <input type="number" id="goal_amount" name="goal_amount" placeholder="e.g. 5000000" required min="0">
+    
+    <label for="goal_horizon">How many years until you need this?</label>
+    <input type="number" id="goal_horizon" name="goal_horizon" placeholder="e.g. 5" required min="1">
+
+    <button type="submit">See My Quick Plan</button>
+</form>
+{% endblock %}

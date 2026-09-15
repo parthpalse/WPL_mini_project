@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BankEase</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background: #f4f4f9; color: #333; }
+        .container { max-width: 800px; margin: 40px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1, h2, h3 { color: #2c3e50; }
+        .footer-disclaimer { margin-top: 40px; padding: 15px; font-size: 0.85em; color: #666; background: #eee; border-radius: 4px; text-align: center; }
+        input[type="number"], input[type="text"] { width: 100%; padding: 10px; margin: 8px 0 20px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #3498db; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+        button:hover { background-color: #2980b9; }
+        .alert { padding: 10px; background-color: #f44336; color: white; margin-bottom: 15px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav style="margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px;">
+            <a href="{{ url_for('profile.index') }}" style="margin-right: 15px;">Intake (Tier 1)</a>
+            <a href="{{ url_for('dashboard.index') }}" style="margin-right: 15px;">Dashboard</a>
+            <a href="{{ url_for('dashboard.simulator') }}">What-If Simulator</a>
+        </nav>
+        {% block content %}{% endblock %}
+        
+        <div class="footer-disclaimer">
+            <strong>Disclaimer:</strong> All interest rates, returns, and financial projections shown are illustrative and based on static snapshots. They do not constitute financial advice. Consult a qualified financial advisor for personalized guidance.
+        </div>
+    </div>
+</body>
+</html>
