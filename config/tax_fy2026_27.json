@@ -1,0 +1,81 @@
+{
+  "financial_year": "2026-27",
+  "assessment_year": "2027-28",
+  "as_of": "2026-09-22",
+  "source": "Income-tax Act, 1961 as amended by Finance Act 2024 / 2025 proposals",
+  "confidence_note": "Statutory rates for Indian residents under 60 years",
+  "regime": "new",
+  "slabs": [
+    {"upto": 400000, "rate": 0.0},
+    {"upto": 800000, "rate": 0.05},
+    {"upto": 1200000, "rate": 0.10},
+    {"upto": 1600000, "rate": 0.15},
+    {"upto": 2000000, "rate": 0.20},
+    {"upto": 2400000, "rate": 0.25},
+    {"upto": null, "rate": 0.30}
+  ],
+  "standard_deduction": 75000,
+  "rebate_87a": {
+    "max_taxable_income": 1200000,
+    "max_rebate": 60000,
+    "marginal_relief": true
+  },
+  "cess_rate": 0.04,
+  "new_regime": {
+    "standard_deduction": 75000,
+    "slabs": [
+      {"upto": 400000, "rate": 0.0},
+      {"upto": 800000, "rate": 0.05},
+      {"upto": 1200000, "rate": 0.10},
+      {"upto": 1600000, "rate": 0.15},
+      {"upto": 2000000, "rate": 0.20},
+      {"upto": 2400000, "rate": 0.25},
+      {"upto": null, "rate": 0.30}
+    ],
+    "rebate_87a": {
+      "max_taxable_income": 1200000,
+      "max_rebate": 60000,
+      "marginal_relief": true
+    },
+    "surcharge": [
+      {"threshold": 5000000, "rate": 0.10},
+      {"threshold": 10000000, "rate": 0.15},
+      {"threshold": 20000000, "rate": 0.25}
+    ],
+    "allowed_deductions": ["employer_nps_80ccd_2"]
+  },
+  "old_regime": {
+    "standard_deduction": 50000,
+    "slabs": [
+      {"upto": 250000, "rate": 0.0},
+      {"upto": 500000, "rate": 0.05},
+      {"upto": 1000000, "rate": 0.20},
+      {"upto": null, "rate": 0.30}
+    ],
+    "rebate_87a": {
+      "max_taxable_income": 500000,
+      "max_rebate": 12500,
+      "marginal_relief": false
+    },
+    "surcharge": [
+      {"threshold": 5000000, "rate": 0.10},
+      {"threshold": 10000000, "rate": 0.15},
+      {"threshold": 20000000, "rate": 0.25},
+      {"threshold": 50000000, "rate": 0.37}
+    ],
+    "caps": {
+      "sec_80c": 150000,
+      "sec_80ccd_1b": 50000,
+      "sec_24b": 200000,
+      "sec_80d": 25000
+    }
+  },
+  "capital_gains": {
+    "equity_ltcg_rate": 0.125,
+    "equity_ltcg_exemption": 125000,
+    "equity_stcg_rate": 0.20,
+    "debt_gains_tax": "slab",
+    "fd_interest_tax": "slab",
+    "savings_interest_deduction_80tta": 10000
+  }
+}

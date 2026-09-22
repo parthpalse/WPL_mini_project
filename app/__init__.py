@@ -32,6 +32,10 @@ def create_app(config_override=None):
     if config_override:
         app.config.update(config_override)
 
+    # Validate configurations at startup
+    from app.config_schema import validate_all_configs
+    validate_all_configs(app.config['CONFIG_DIR'])
+
     # Init extensions
     db.init_app(app)
     login_manager.init_app(app)

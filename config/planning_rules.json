@@ -1,5 +1,6 @@
 {
-  "last_updated": "2026-09-22",
+  "as_of": "2026-09-22",
+  "version": "1.0",
   "emergency_fund": {
     "base_months": {
       "salaried_stable": 3,
@@ -13,13 +14,15 @@
     "dependent_addon_months": 1,
     "min_months": 3,
     "max_months": 12,
-    "liquid_instruments": ["Savings", "FD"]
+    "liquid_instruments": ["Savings", "FD"],
+    "source": "CFP / SEBI Registered Investment Advisor standard liquidity guidelines"
   },
   "buffer_pct": 5.0,
   "debt_rules": {
     "high_interest_threshold_pct": 12.0,
     "prepay_margin_over_return_pct": 2.0,
-    "disallow_investing_with_credit_card_debt": true
+    "disallow_investing_with_credit_card_debt": true,
+    "source": "Standard debt avalanche optimization framework"
   },
   "diversification_caps": {
     "max_single_product_pct": 60.0,
@@ -31,5 +34,22 @@
     "short_term_months": 12,
     "medium_term_months": 36,
     "long_term_months": 60
+  },
+  "expense_benchmarks_by_tier": {
+    "tier_1": {
+      "rent_estimate_pct": 30.0,
+      "food_utilities_estimate_pct": 25.0,
+      "minimum_essential_inr": 35000
+    },
+    "tier_2": {
+      "rent_estimate_pct": 22.0,
+      "food_utilities_estimate_pct": 22.0,
+      "minimum_essential_inr": 22000
+    },
+    "tier_3": {
+      "rent_estimate_pct": 15.0,
+      "food_utilities_estimate_pct": 20.0,
+      "minimum_essential_inr": 15000
+    }
   }
 }

@@ -1,0 +1,18 @@
+{
+  "financial_year": "2026-27",
+  "as_of": "2026-09-22",
+  "inflation": {
+    "annual_rate_pct": 6.0,
+    "source": "Reserve Bank of India (RBI) Medium-Term Inflation Target Band",
+    "as_of": "2026-09-15",
+    "confidence_note": "Long-term policy baseline (4% +/- 2%)",
+    "unit": "percentage"
+  },
+  "risk_free_rate": {
+    "annual_rate_pct": 6.8,
+    "source": "10-Year Government of India Benchmark Bond Yield (GS 2034)",
+    "as_of": "2026-09-15",
+    "confidence_note": "Sovereign risk-free benchmark",
+    "unit": "percentage"
+  }
+}

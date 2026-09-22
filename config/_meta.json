@@ -1,0 +1,9 @@
+{
+  "system_version": "2.0.0",
+  "schema_version": "1.0.0",
+  "last_reviewed": "2026-09-22",
+  "default_financial_year": "2026-27",
+  "supported_financial_years": ["2026-27"],
+  "maintainer": "BankEase Core Team",
+  "notes": "Snapshot parameters for personal financial planning in India"
+}
