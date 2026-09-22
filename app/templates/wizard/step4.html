@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "wizard/macros.html" import progress %}
+{% block title %}Step 4: Debts & Savings - BankEase{% endblock %}
+{% block content %}
+<div style="max-width: 560px; margin: 0 auto;">
+    {{ progress(4) }}
+    <h2 style="margin-bottom:4px;">Step 4: Debts &amp; Existing Savings</h2>
+    <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:6px;">
+        Optional — but helps us prioritise debt repayment vs investing correctly.
+    </p>
+    <p style="color:var(--text-muted); font-size:0.82rem; margin-bottom:24px;">
+        <em>Tip: You can skip this step if you have no active debt.</em>
+    </p>
+
+    <div class="card">
+        <form method="POST" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <h4 style="margin-bottom:14px; font-size:0.95rem; font-weight:700;">Outstanding Debts</h4>
+
+            <div class="form-group">
+                <label for="credit_card_balance">Credit Card Outstanding Balance</label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="credit_card_balance" name="credit_card_balance" min="0"
+                        value="{{ data.get('credit_card_balance','0') }}" placeholder="0">
+                </div>
+                <span class="help">Total balance across all cards. Interest rate ~36–42% p.a. — always clear first!</span>
+            </div>
+
+            <div class="form-group">
+                <label for="personal_loan_emi">Personal Loan EMI</label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="personal_loan_emi" name="personal_loan_emi" min="0"
+                        value="{{ data.get('personal_loan_emi','0') }}" placeholder="0">
+                </div>
+                <span class="help">Monthly EMI amount (if any)</span>
+            </div>
+
+            <div class="form-group">
+                <label for="personal_loan_rate">Personal Loan Interest Rate (% p.a.)</label>
+                <input type="number" id="personal_loan_rate" name="personal_loan_rate" min="0" max="50" step="0.1"
+                    value="{{ data.get('personal_loan_rate','0') }}" placeholder="e.g. 14">
+            </div>
+
+            <hr style="border:none; border-top:1px solid var(--border); margin: 20px 0;">
+            <h4 style="margin-bottom:14px; font-size:0.95rem; font-weight:700;">Existing Savings / Investments</h4>
+
+            <div class="form-group">
+                <label for="existing_savings">Bank Savings / FDs</label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="existing_savings" name="existing_savings" min="0"
+                        value="{{ data.get('existing_savings','0') }}" placeholder="0">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="existing_investments">Existing Investments (PPF, MF, stocks, etc.)</label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="existing_investments" name="existing_investments" min="0"
+                        value="{{ data.get('existing_investments','0') }}" placeholder="0">
+                </div>
+                <span class="help">Approximate current market value</span>
+            </div>
+
+            <div style="display:flex; gap:12px; justify-content:space-between; margin-top:8px;">
+                <a href="{{ url_for('wizard.step', step_id=3) }}" class="btn btn-secondary">← Back</a>
+                <div style="display:flex; gap:10px;">
+                    <a href="{{ url_for('wizard.step', step_id=5) }}" class="btn btn-secondary">Skip</a>
+                    <button type="submit" class="btn btn-primary">Next: Goals →</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

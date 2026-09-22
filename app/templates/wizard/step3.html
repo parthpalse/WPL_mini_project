@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "wizard/macros.html" import progress %}
+{% block title %}Step 3: Expenses - BankEase{% endblock %}
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    {{ progress(3) }}
+    <h2 style="margin-bottom:4px;">Step 3: Monthly Expenses</h2>
+    <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px;">
+        Adjust the sliders to match your spending. Defaults are city-tier estimates — change any you know.
+    </p>
+
+    <div class="card">
+        <form method="POST" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            {% set cats = [
+                ('exp_rent',    'Rent / Home Loan EMI',        0,     80000, 15000, '🏠', 'Include maintenance if applicable'),
+                ('exp_food',    'Groceries & Dining',           1000,  30000, 8000,  '🛒', 'Home cooking + eating out'),
+                ('exp_transport','Transport (commute, petrol)', 0,     20000, 4000,  '🚗', 'Daily commute, fuel, cab'),
+                ('exp_utilities','Utilities (electricity, internet, mobile)', 500, 10000, 3000, '💡', 'Electricity, broadband, phone bills'),
+                ('exp_health',  'Health & Insurance',           0,     20000, 2000,  '🏥', 'Health insurance premium, medicines'),
+                ('exp_other',   'Other (shopping, entertainment, misc)', 0, 40000, 5000, '🎭', 'Discretionary spends')
+            ] %}
+
+            {% for name, label, min_v, max_v, default, icon, hint in cats %}
+            <div style="margin-bottom: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label for="{{ name }}" style="font-weight:500;">{{ icon }} {{ label }}</label>
+                    <strong id="{{ name }}-display" style="color:var(--primary); min-width:90px; text-align:right; font-size:0.95rem;"></strong>
+                </div>
+                <input type="range" id="{{ name }}" name="{{ name }}"
+                    min="{{ min_v }}" max="{{ max_v }}" step="500"
+                    value="{{ data.get(name, default) }}"
+                    oninput="updateSlider('{{ name }}')"
+                    aria-label="{{ label }}">
+                <span class="help">{{ hint }}</span>
+                <input type="hidden" name="{{ name }}_hidden" id="{{ name }}_hidden" value="{{ data.get(name, default) }}">
+            </div>
+            {% endfor %}
+
+            <div style="background:#f3f4f6; border-radius:8px; padding:14px; margin-bottom:18px;">
+                <div style="display:flex; justify-content:space-between; font-weight:600; font-size:1rem;">
+                    <span>Estimated Total Expenses</span>
+                    <span id="total-exp-display" style="color:var(--danger);">₹0</span>
+                </div>
+            </div>
+
+            <div id="exp-warning" style="display:none;" class="flash flash-error" role="alert">
+                ⚠️ Expenses exceed 150% of your income. Please review — or confirm this is correct and continue.
+            </div>
+
+            <div style="display:flex; gap:12px; justify-content:space-between;">
+                <a href="{{ url_for('wizard.step', step_id=2) }}" class="btn btn-secondary">← Back</a>
+                <button type="submit" class="btn btn-primary">Next: Debts →</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const CAT_NAMES = ['exp_rent','exp_food','exp_transport','exp_utilities','exp_health','exp_other'];
+const INCOME = {{ session.get('wizard_data', {}).get('income_amount', 0) | float }};
+
+function formatIN(n) {
+    if (!n) return '₹0';
+    return '₹' + parseInt(n).toLocaleString('en-IN');
+}
+
+function updateSlider(name) {
+    const el = document.getElementById(name);
+    document.getElementById(name + '-display').textContent = formatIN(el.value);
+    document.getElementById(name + '_hidden').value = el.value;
+    updateTotal();
+}
+
+function updateTotal() {
+    let total = 0;
+    CAT_NAMES.forEach(n => { total += parseFloat(document.getElementById(n).value) || 0; });
+    document.getElementById('total-exp-display').textContent = formatIN(total);
+    const warn = document.getElementById('exp-warning');
+    warn.style.display = (INCOME > 0 && total > INCOME * 1.5) ? 'block' : 'none';
+}
+
+// Init on page load
+CAT_NAMES.forEach(n => updateSlider(n));
+</script>
+{% endblock %}

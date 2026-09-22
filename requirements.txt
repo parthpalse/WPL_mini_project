@@ -5,3 +5,11 @@ scipy>=1.11
 pulp>=2.7
 requests>=2.31
 pytest>=7.4
+gunicorn
+Flask-WTF
+Flask-Migrate
+ruff
+mypy
+pytest-cov
+pydantic
+hypothesis

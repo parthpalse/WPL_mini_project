@@ -1,0 +1,14 @@
+{% macro progress(current) %}
+<div class="wizard-progress" role="navigation" aria-label="Wizard steps">
+    {% for i in range(1,6) %}
+        <div class="step-dot {% if i < current %}done{% elif i == current %}active{% endif %}"
+             aria-label="Step {{ i }}{% if i < current %} (done){% elif i == current %} (current){% endif %}">
+            {% if i < current %}✓{% else %}{{ i }}{% endif %}
+        </div>
+        {% if i < 5 %}<div class="step-line {% if i < current %}done{% endif %}"></div>{% endif %}
+    {% endfor %}
+</div>
+<div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:-14px; margin-bottom:24px;">
+    <span>About You</span><span style="margin-left:10px">Income</span><span>Expenses</span><span>Debts</span><span>Goals</span>
+</div>
+{% endmacro %}

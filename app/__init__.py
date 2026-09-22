@@ -4,13 +4,19 @@ try:
     from flask import Flask
     from flask_sqlalchemy import SQLAlchemy
     from flask_login import LoginManager
+    from flask_wtf.csrf import CSRFProtect
+    from flask_migrate import Migrate
 
     db = SQLAlchemy()
     login_manager = LoginManager()
+    csrf = CSRFProtect()
+    migrate = Migrate()
 except ImportError:
     Flask = None
     db = None
     login_manager = None
+    csrf = None
+    migrate = None
 
 
 def create_app(config_override=None):
@@ -38,20 +44,47 @@ def create_app(config_override=None):
 
     # Init extensions
     db.init_app(app)
+    migrate.init_app(app, db)
+    csrf.init_app(app)
     login_manager.init_app(app)
-    login_manager.login_view = 'profile.login'
+    login_manager.login_view = 'profile.index'
+
+    # Secure Headers
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        return response
+
+    # Setup Logging
+    from app.logger import setup_logging
+    setup_logging(app)
+
+    # ── Jinja2 Filters & Globals ──────────────────────────────────────────────
+    def indian_currency(value):
+        """Format a number as Indian currency string: ₹1,50,000"""
+        try:
+            n = abs(int(float(value)))
+        except (TypeError, ValueError):
+            return '₹0'
+        s = str(n)
+        last3 = s[-3:]
+        rest = s[:-3]
+        grouped = ','.join([rest[max(0, i-2):i] for i in range(len(rest), 0, -2)][::-1])
+        return '₹' + ((grouped + ',') if grouped else '') + last3
+
+    app.jinja_env.filters['indian_currency'] = indian_currency
+    app.jinja_env.globals['abs'] = abs
 
     # Register blueprints
     from app.routes.profile import profile_bp
     from app.routes.plan import plan_bp
     from app.routes.dashboard import dashboard_bp
+    from app.routes.wizard import wizard_bp
     app.register_blueprint(profile_bp)
     app.register_blueprint(plan_bp)
     app.register_blueprint(dashboard_bp)
-
-    # Create tables
-    with app.app_context():
-        from app.models import models  # noqa: F401
-        db.create_all()
+    app.register_blueprint(wizard_bp)
 
     return app

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Start Your Plan - BankEase{% endblock %}
+{% block content %}
+<div style="text-align:center; padding: 40px 0 20px;">
+    <h1 style="font-size:2rem; color: var(--primary); margin-bottom:12px;">Plan Your Financial Future</h1>
+    <p style="color: var(--text-muted); font-size: 1.05rem; max-width: 540px; margin: 0 auto 30px;">
+        Answer a few simple questions and get a personalized, data-driven financial plan in minutes.
+    </p>
+    <div class="grid grid-2" style="max-width: 500px; margin: 0 auto; gap: 14px;">
+        <a href="{{ url_for('wizard.step', step_id=1) }}" class="btn btn-primary" style="padding: 14px; font-size: 1rem;">
+            📋 Full Plan (3 min)
+        </a>
+        <a href="{{ url_for('wizard.quick') }}" class="btn btn-secondary" style="padding: 14px; font-size: 1rem;">
+            ⚡ Quick Estimate (60s)
+        </a>
+    </div>
+</div>
+<div class="grid grid-3" style="margin-top: 32px;">
+    <div class="card" style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">🔒</div>
+        <strong>100% Private</strong>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Your data never leaves your device</p>
+    </div>
+    <div class="card" style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">🧮</div>
+        <strong>Accurate Math</strong>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Section 87A, surcharges, both tax regimes</p>
+    </div>
+    <div class="card" style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">📊</div>
+        <strong>Actionable Plan</strong>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Step-by-step breakdown, not just numbers</p>
+    </div>
+</div>
+{% endblock %}

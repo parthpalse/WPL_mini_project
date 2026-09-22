@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "wizard/macros.html" import progress %}
+{% block title %}Step 5: Goals & Risk - BankEase{% endblock %}
+{% block content %}
+<div style="max-width: 560px; margin: 0 auto;">
+    {{ progress(5) }}
+    <h2 style="margin-bottom:4px;">Step 5: Goals &amp; Risk Profile</h2>
+    <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px;">
+        Answer in plain language — no jargon. This shapes your investment mix.
+    </p>
+
+    <div class="card">
+        <form method="POST" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label>How would you feel if your investments dropped 20% temporarily?</label>
+                <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                    {% for val, label in [
+                        ('1', '😰  Very anxious — I cannot sleep. I prefer safety over returns.'),
+                        ('3', '😐  I\'d be uncomfortable but would wait for recovery.'),
+                        ('5', '😌  I understand markets fluctuate. I can hold for 3–5 years.'),
+                        ('7', '😎  Fine. I invest for the long term (7+ years). Short dips don\'t bother me.')
+                    ] %}
+                    <label style="font-weight:400; display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
+                        <input type="radio" name="risk_attitude" value="{{ val }}"
+                            {% if data.get('risk_attitude', '5') == val %}checked{% endif %} required
+                            style="width:auto; margin-top:3px;">
+                        <span>{{ label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <span class="help">This sets your risk score (1 = conservative, 7 = aggressive)</span>
+            </div>
+
+            <div class="form-group" style="margin-top:20px;">
+                <label>Might you need a large lump sum within the next 12 months?</label>
+                <select name="liquidity_need" required>
+                    <option value="high" {% if data.get('liquidity_need')=='high' %}selected{% endif %}>Yes — likely (wedding, home purchase, medical)</option>
+                    <option value="medium" {% if data.get('liquidity_need','medium')=='medium' %}selected{% endif %}>Maybe — uncertain</option>
+                    <option value="low" {% if data.get('liquidity_need')=='low' %}selected{% endif %}>No — money can stay invested</option>
+                </select>
+                <span class="help">
+                    <span title="Liquidity measures how quickly you may need to access your invested money.">ℹ️ What is liquidity?</span>
+                    — how quickly you need access to your invested money
+                </span>
+            </div>
+
+            <div class="form-group" style="margin-top:20px;">
+                <label for="goal_horizon">Primary Goal Horizon</label>
+                <select id="goal_horizon" name="goal_horizon">
+                    <option value="short" {% if data.get('goal_horizon')=='short' %}selected{% endif %}>Short-term (under 2 years — emergency fund, vacation)</option>
+                    <option value="medium" {% if data.get('goal_horizon','medium')=='medium' %}selected{% endif %}>Medium-term (2–5 years — car, home down payment)</option>
+                    <option value="long" {% if data.get('goal_horizon')=='long' %}selected{% endif %}>Long-term (5–10 years — children's education, retirement)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="goal_amount">Goal Target Amount (optional)</label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="goal_amount" name="goal_amount" min="0"
+                        value="{{ data.get('goal_amount','') }}" placeholder="e.g. 5000000">
+                </div>
+                <span class="help">E.g. ₹50 lakh for home down-payment, ₹2 Cr for retirement</span>
+            </div>
+
+            <div style="display:flex; gap:12px; justify-content:space-between; margin-top:8px;">
+                <a href="{{ url_for('wizard.step', step_id=4) }}" class="btn btn-secondary">← Back</a>
+                <button type="submit" class="btn btn-primary" style="background: var(--success); padding: 12px 28px;">
+                    🎉 Get My Plan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

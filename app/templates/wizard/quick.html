@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Quick Estimate - BankEase{% endblock %}
+{% block content %}
+<div style="max-width: 520px; margin: 0 auto;">
+    <a href="{{ url_for('wizard.index') }}" style="font-size:0.85rem; color:var(--text-muted);">← Back</a>
+    <h2 style="margin: 16px 0 4px;">⚡ Quick Estimate</h2>
+    <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px;">Just 4 fields for an instant rough result. You can refine later.</p>
+
+    <div class="card">
+        <form method="POST" id="quick-form" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="monthly_income">Monthly In-Hand Income <span style="color:var(--danger)">*</span></label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="monthly_income" name="monthly_income" min="1000" max="10000000"
+                        value="{{ data.get('monthly_income','') }}" required
+                        placeholder="e.g. 60000" aria-describedby="income-help">
+                </div>
+                <span id="income-help" class="help">Your net take-home salary per month</span>
+                <div class="field-error" id="monthly_income-err">Please enter a valid monthly income</div>
+            </div>
+
+            <div class="form-group">
+                <label for="monthly_rent">Monthly Rent / Home Loan EMI <span style="color:var(--danger)">*</span></label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="monthly_rent" name="monthly_rent" min="0"
+                        value="{{ data.get('monthly_rent','') }}" required
+                        placeholder="e.g. 15000">
+                </div>
+                <span class="help">Include any housing cost</span>
+                <div class="field-error" id="monthly_rent-err">Please enter rent / EMI amount</div>
+            </div>
+
+            <div class="form-group">
+                <label for="other_emis">Other EMIs (vehicle, personal loan, etc.)</label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="other_emis" name="other_emis" min="0"
+                        value="{{ data.get('other_emis','0') }}"
+                        placeholder="0">
+                </div>
+                <span class="help">Leave 0 if none</span>
+            </div>
+
+            <div class="form-group">
+                <label for="other_expenses">Other Monthly Expenses <span style="color:var(--danger)">*</span></label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="other_expenses" name="other_expenses" min="0"
+                        value="{{ data.get('other_expenses','') }}" required
+                        placeholder="e.g. 20000">
+                </div>
+                <span class="help">Groceries, utilities, transport, dining, etc.</span>
+                <div class="field-error" id="other_expenses-err">Please enter other expenses</div>
+            </div>
+
+            <div id="expense-warning" style="display:none;" class="flash flash-error" role="alert">
+                ⚠️ Your total expenses seem to exceed your income. Please double-check before continuing.
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full" style="margin-top:8px;">
+                Get My Estimate →
+            </button>
+        </form>
+    </div>
+
+    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:16px; text-align:center;">
+        Want more accuracy? Use the <a href="{{ url_for('wizard.step', step_id=1) }}">Full Plan wizard</a>.
+    </p>
+</div>
+
+<script>
+document.getElementById('quick-form').addEventListener('submit', function(e) {
+    const income = parseFloat(document.getElementById('monthly_income').value) || 0;
+    const rent   = parseFloat(document.getElementById('monthly_rent').value) || 0;
+    const emis   = parseFloat(document.getElementById('other_emis').value) || 0;
+    const other  = parseFloat(document.getElementById('other_expenses').value) || 0;
+    const total_exp = rent + emis + other;
+    const warning = document.getElementById('expense-warning');
+    if (total_exp > income * 1.5) {
+        warning.style.display = 'block';
+        // Don't block, just warn
+    } else {
+        warning.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

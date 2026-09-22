@@ -1,122 +1,339 @@
 {% extends "base.html" %}
+{% block title %}Your Financial Plan - BankEase{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.headline-card { border-left: 5px solid var(--success); }
+.headline-card.deficit { border-left-color: var(--danger); }
+.headline-amt { font-size: 2.2rem; font-weight: 800; }
+.surplus .headline-amt { color: var(--success); }
+.deficit .headline-amt { color: var(--danger); }
+.section-title { font-size: 1rem; font-weight: 700; color: var(--text); margin: 28px 0 14px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+.tax-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tax-compare .regime { padding: 14px; border-radius: 8px; border: 2px solid transparent; }
+.tax-compare .regime.best { border-color: var(--success); background: #f0fdf4; }
+.alloc-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.alloc-table th { text-align: left; padding: 8px 10px; background: #f3f4f6; font-weight: 600; color: var(--text-muted); border-bottom: 2px solid var(--border); }
+.alloc-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.alloc-table tr:last-child td { border-bottom: none; }
+.amount-cell { font-weight: 700; color: var(--primary); }
+@media (max-width: 768px) { .tax-compare { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js/auto"></script>
+{% set s = surplus_data.summary %}
+{% set is_positive = s.monthly_surplus > 0 %}
 
-<h2>Your Financial Dashboard</h2>
-
-<div style="display: flex; gap: 20px; flex-wrap: wrap;">
-    <div style="flex: 1; min-width: 300px; background: #e8f4f8; padding: 20px; border-radius: 8px;">
-        <h3>Monthly Surplus: ₹{{ surplus_data.summary.monthly_surplus }}</h3>
-        <details>
-            <summary>See calculation</summary>
-            <ul>
-                <li>Gross Income: ₹{{ surplus_data.tax_result.gross_income }}</li>
-                <li>Total Tax: ₹{{ surplus_data.tax_result.total_tax }}</li>
-                <li>Net Monthly Income: ₹{{ surplus_data.summary.net_monthly_income }}</li>
-                <li>Expenses: ₹{{ surplus_data.summary.total_monthly_expenses }}</li>
-                <li>Emergency Fund Contrib: ₹{{ surplus_data.summary.emergency_fund_monthly }}</li>
-            </ul>
-        </details>
-    </div>
-    
-    <div style="flex: 1; min-width: 300px; background: #fdf5e6; padding: 20px; border-radius: 8px;">
-        <h3>Goal: {{ tier1.goal_name }}</h3>
-        <p>Target: ₹{{ tier1.goal_amount }} in {{ tier1.goal_horizon }} years</p>
-    </div>
-</div>
-
-<h3 style="margin-top: 40px;">Recommended Allocation Strategies</h3>
-{% if surplus_data.summary.surplus_is_positive %}
-<div style="display: flex; gap: 20px; flex-wrap: wrap;">
-    {% for strategy, alloc in allocations.items() %}
-    <div style="flex: 1; min-width: 250px; background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
-        <h4 style="text-transform: capitalize;">{{ strategy }} Strategy</h4>
-        <div style="position: relative; height: 250px; width: 100%;">
-            <canvas id="chart-{{ strategy }}" style="display: block;"></canvas>
+<!-- ① Headline Card -->
+<div class="card headline-card {{ 'surplus' if is_positive else 'deficit' }}" style="margin-bottom:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:14px;">
+        <div>
+            <div style="font-size:0.85rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;">
+                {{ '✅ Monthly Investable Surplus' if is_positive else '⚠️ Monthly Shortfall' }}
+            </div>
+            <div class="headline-amt">{{ s.monthly_surplus | abs | indian_currency }}</div>
+            <p style="font-size:0.9rem; color:var(--text-muted); margin-top:8px;">
+                {% if is_positive %}
+                    After tax, expenses, and an emergency fund reserve — this is what you can safely invest each month.
+                {% else %}
+                    Your monthly outflows exceed income by this amount. We'll show you how to fix this first.
+                {% endif %}
+            </p>
         </div>
-        <ul style="margin-top: 15px; padding-left: 20px;">
-            {% for prod, details in alloc.items() %}
-            <li>{{ prod }}: {{ details.percentage }}% (₹{{ details.amount }})</li>
-            {% endfor %}
-        </ul>
+        <div style="text-align:right;">
+            <span class="badge {{ 'badge-green' if is_positive else 'badge-red' }}">
+                {{ 'Positive' if is_positive else 'Deficit' }}
+            </span>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">FY 2026–27 Estimates</p>
+        </div>
     </div>
-    {% endfor %}
 </div>
-{% else %}
-<div class="alert">
-    <strong>Shortfall Detected:</strong> Your estimated expenses and emergency fund contributions exceed your net income. We cannot recommend investment strategies until you have a positive monthly surplus. 
-    <br><br>
-    <em>Tip: Review your expenses or consider adjusting your goals to build a sustainable surplus.</em>
+
+<!-- ② Waterfall Chart -->
+<div class="section-title">📊 Income Breakdown (Waterfall)</div>
+<div class="card" style="margin-bottom:20px;">
+    <canvas id="waterfallChart" height="90" aria-label="Income breakdown waterfall chart" role="img">
+        <p>Waterfall chart showing income, tax, expenses, buffer and investable amount.</p>
+    </canvas>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin-top:10px; font-style:italic;">
+        ℹ️ Illustrative — based on the figures you provided. Actual tax may vary.
+    </p>
+</div>
+
+<!-- ③ Action Checklist -->
+<div class="section-title">✅ Your Action Plan</div>
+<div class="card" style="margin-bottom:20px;">
+    <ul class="checklist" aria-label="Ordered action checklist">
+        {% if s.get('credit_card_balance', 0) | float > 0 %}
+        <li>
+            <div class="step-num">1</div>
+            <div class="step-detail">
+                <strong>🚨 Clear Credit Card Debt First</strong>
+                <span>Outstanding: {{ s.get('credit_card_balance',0) | indian_currency }}. At ~36–42% interest, this is always priority zero before any investing.</span>
+            </div>
+        </li>
+        {% endif %}
+        <li>
+            <div class="step-num">{{ '2' if s.get('credit_card_balance',0)|float > 0 else '1' }}</div>
+            <div class="step-detail">
+                <strong>🛡️ Build Emergency Fund</strong>
+                <span>
+                    Monthly contribution: <strong>{{ s.emergency_fund_monthly | indian_currency }}</strong>.
+                    Target: {{ s.emergency_fund_target | default(0) | indian_currency }} (3–6 months of expenses).
+                    Keep in a savings account or liquid fund only.
+                </span>
+            </div>
+        </li>
+        {% if is_positive %}
+        <li>
+            <div class="step-num">{{ '3' if s.get('credit_card_balance',0)|float > 0 else '2' }}</div>
+            <div class="step-detail">
+                <strong>📈 Start Systematic Investments (SIPs)</strong>
+                <span>
+                    Deploy <strong>{{ s.monthly_surplus | indian_currency }}</strong>/month across asset classes per your risk profile.
+                    See the allocation plan below.
+                </span>
+            </div>
+        </li>
+        <li>
+            <div class="step-num">{{ '4' if s.get('credit_card_balance',0)|float > 0 else '3' }}</div>
+            <div class="step-detail">
+                <strong>🔄 Review Every 6 Months</strong>
+                <span>As income grows or goals change, revisit this plan to re-optimise allocations.</span>
+            </div>
+        </li>
+        {% else %}
+        <li>
+            <div class="step-num">{{ '2' if s.get('credit_card_balance',0)|float > 0 else '2' }}</div>
+            <div class="step-detail">
+                <strong>✂️ Reduce Discretionary Spending</strong>
+                <span>Review the expense breakdown in your plan. Cutting {{ s.monthly_surplus | abs | indian_currency }} from non-essentials restores balance.</span>
+            </div>
+        </li>
+        {% endif %}
+    </ul>
+</div>
+
+<!-- ④ Allocation -->
+{% if is_positive and allocations %}
+<div class="section-title">💼 Recommended Allocation (Illustrative — Asset Classes, Not Specific Schemes)</div>
+<div class="grid grid-main" style="margin-bottom:20px; gap:20px;">
+    <div class="card">
+        <canvas id="allocationChart" height="200" aria-label="Asset allocation donut chart" role="img">
+            <p>Donut chart showing recommended asset class allocation.</p>
+        </canvas>
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+        <table class="alloc-table">
+            <thead><tr><th>Asset Class</th><th>Monthly Amount</th><th>Reason</th></tr></thead>
+            <tbody>
+            {% set strat = allocations.get('balanced', allocations.get('safe', allocations.get('growth', {}))) %}
+            {% for product, detail in strat.items() %}
+                {% if detail.amount > 0 %}
+                <tr>
+                    <td><strong>{{ product | replace('_',' ') | title }}</strong></td>
+                    <td class="amount-cell">{{ detail.amount | indian_currency }}</td>
+                    <td style="color:var(--text-muted); font-size:0.82rem;">
+                        {{ detail.get('reason', detail.get('reasons', ['Risk-appropriate allocation'])[0] if detail.get('reasons') else 'Risk-appropriate allocation') }}
+                    </td>
+                </tr>
+                {% endif %}
+            {% else %}
+            <tr><td colspan="3" style="color:var(--text-muted); text-align:center; padding:20px;">No allocations available for current inputs.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <div style="padding:10px 14px; font-size:0.78rem; color:var(--text-muted); border-top:1px solid var(--border); font-style:italic;">
+            ⚠️ These are asset CLASS allocations — not specific fund or scheme recommendations. Consult an advisor for actual product selection.
+        </div>
+    </div>
 </div>
 {% endif %}
 
-<h3 style="margin-top: 40px;">AI Explanation</h3>
-<div id="ai-explanation" style="background: #e6f7ff; padding: 20px; border-radius: 8px; border: 1px solid #91d5ff;">
-    <p><em>Generating your personalized plan explanation...</em></p>
+<!-- ⑤ Projection Chart -->
+{% if is_positive %}
+<div class="section-title">📈 Wealth Projection (Conservative / Base / Optimistic)</div>
+<div class="card" style="margin-bottom:20px;">
+    <div style="display:flex; gap:10px; margin-bottom:14px; align-items:center; flex-wrap:wrap;">
+        <span style="font-size:0.85rem; color:var(--text-muted);">Show values in:</span>
+        <div class="toggle-group" id="proj-toggle">
+            <button type="button" class="active" onclick="toggleProjection('future',this)">Future Rupees</button>
+            <button type="button" onclick="toggleProjection('today',this)">Today's Rupees (Real)</button>
+        </div>
+    </div>
+    <canvas id="projectionChart" height="90" aria-label="Wealth projection line chart" role="img">
+        <p>Line chart showing projected wealth over 10 years under three scenarios.</p>
+    </canvas>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin-top:10px; font-style:italic;">
+        ℹ️ <strong>Illustrative, not guaranteed.</strong> Conservative: 6% p.a. | Base: 10% p.a. | Optimistic: 14% p.a. | Inflation: 6% p.a.
+        Monte Carlo seed: 42 (deterministic). Values rounded to nearest thousand.
+    </p>
+</div>
+{% endif %}
+
+<!-- ⑥ Tax Insight -->
+{% set tax = surplus_data.get('tax_comparison', {}) %}
+{% if tax %}
+<div class="section-title">🧾 Tax Regime Comparison</div>
+<div class="card" style="margin-bottom:20px;">
+    <div class="tax-compare">
+        <div class="regime {{ 'best' if tax.recommended == 'new' else '' }}">
+            <div style="font-weight:700; margin-bottom:6px;">New Tax Regime</div>
+            <div style="font-size:1.4rem; font-weight:800; color:var(--primary);">{{ tax.new.tax | indian_currency }}</div>
+            <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Annual tax outgo</div>
+            {% if tax.recommended == 'new' %}<span class="badge badge-green" style="margin-top:8px;">✅ Recommended</span>{% endif %}
+        </div>
+        <div class="regime {{ 'best' if tax.recommended == 'old' else '' }}">
+            <div style="font-weight:700; margin-bottom:6px;">Old Tax Regime</div>
+            <div style="font-size:1.4rem; font-weight:800; color:var(--primary);">{{ tax.old.tax | indian_currency }}</div>
+            <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Annual tax outgo</div>
+            {% if tax.recommended == 'old' %}<span class="badge badge-green" style="margin-top:8px;">✅ Recommended</span>{% endif %}
+        </div>
+    </div>
+    {% if tax.savings > 0 %}
+    <div style="margin-top:14px; font-size:0.9rem;">
+        💡 Choosing the {{ tax.recommended | title }} Regime saves you
+        <strong style="color:var(--success);">{{ tax.savings | indian_currency }} per year</strong>
+        ({{ (tax.savings / 12) | round | int | indian_currency }}/month).
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ⑦ What-If Panel -->
+{% if is_positive %}
+<div class="section-title">🎛️ What-If Scenarios</div>
+<div class="card" style="margin-bottom:20px;">
+    <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:18px;">
+        Drag the sliders to see how changes impact your investable surplus instantly.
+    </p>
+    <div class="whatif-row">
+        <label>Monthly Income</label>
+        <input type="range" id="wi_income" min="10000" max="500000" step="1000"
+            value="{{ s.net_monthly_income }}" oninput="recalcWhatIf()">
+        <span class="whatif-val" id="wi_income_val"></span>
+    </div>
+    <div class="whatif-row">
+        <label>Monthly Expenses</label>
+        <input type="range" id="wi_expenses" min="0" max="400000" step="1000"
+            value="{{ s.total_monthly_expenses }}" oninput="recalcWhatIf()">
+        <span class="whatif-val" id="wi_expenses_val"></span>
+    </div>
+    <div style="background:#f3f4f6; padding:14px; border-radius:8px; margin-top:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:600;">New Estimated Surplus</span>
+            <span id="wi_surplus_val" style="font-size:1.3rem; font-weight:800;"></span>
+        </div>
+        <div id="wi_delta" class="whatif-delta" style="margin-top:8px;"></div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ⑧ AI Explanation Panel -->
+<div class="section-title">🤖 AI Explanation</div>
+<div class="card explanation-panel" id="ai-panel" style="margin-bottom:20px;">
+    <div class="ex-source" id="ai-source-label">
+        <span class="spinner"></span> Generating your personalised explanation…
+    </div>
+    <div id="ai-content"></div>
 </div>
 
-<script>
-    const allocations = {{ allocations | tojson }};
-    const surplus_data = {{ surplus_data | tojson }};
-    
-    // Helper to generate colors
-    const colors = {
-        'Savings': '#3498db',
-        'RD': '#2ecc71',
-        'FD': '#f1c40f',
-        'Debt Fund': '#e67e22',
-        'Equity Fund': '#e74c3c'
-    };
+<!-- ⑨ How This Was Calculated -->
+{% if surplus_data.get('trace') %}
+<div class="section-title">🔍 How This Was Calculated</div>
+<div class="card" style="margin-bottom:20px;">
+    <details class="trace-details">
+        <summary>Show calculation trace ({{ surplus_data.trace | length }} steps)</summary>
+        <table class="trace-table">
+            <thead><tr><th>#</th><th>Step</th><th>Result</th><th>Formula</th></tr></thead>
+            <tbody>
+            {% for step in surplus_data.trace %}
+            <tr>
+                <td style="color:var(--text-muted);">{{ loop.index }}</td>
+                <td><strong>{{ step.label }}</strong>{% if step.get('note') %}<br><span style="color:var(--text-muted); font-size:0.8rem;">{{ step.note }}</span>{% endif %}</td>
+                <td style="font-weight:600;">{{ step.get('formatted_result', step.get('result','—')) }}</td>
+                <td style="font-family:monospace; font-size:0.8rem; color:var(--text-muted);">{{ step.get('formula','') }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </details>
+</div>
+{% endif %}
 
-    Object.keys(allocations).forEach(strategy => {
-        const data = allocations[strategy];
-        const labels = Object.keys(data);
-        const values = labels.map(l => data[l].percentage);
-        const bgColors = labels.map(l => colors[l] || '#95a5a6');
+<!-- ⑩ Assumptions Drawer -->
+<div class="card" style="margin-bottom:10px;">
+    <details class="assumptions-details">
+        <summary>📋 Assumptions &amp; Data Sources</summary>
+        <ul class="assumptions-list" style="margin-top:12px;">
+            <li>Tax slabs: Finance Act 2026–27. New regime default under Section 115BAC.</li>
+            <li>Section 87A rebate: ₹25,000 for income up to ₹12,75,000 (New Regime).</li>
+            <li>Surcharges: 10% (₹50L–₹1Cr), 15% (₹1Cr–₹2Cr), 25% (₹2Cr+).</li>
+            <li>Health &amp; Education Cess: 4% on tax + surcharge.</li>
+            <li>Emergency fund: 6 months of monthly expenses.</li>
+            <li>Investment return assumptions — Conservative: 6% | Base: 10% | Optimistic: 14% p.a.</li>
+            <li>Inflation assumption: 6% p.a. (RBI target band: 4±2%).</li>
+            <li>Product rate source: RBI / AMFI / SEBI public data, FY2026.</li>
+        </ul>
+    </details>
+</div>
 
-        const canvas = document.getElementById(`chart-${strategy}`);
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: bgColors,
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false
-                }
-            });
-        }
-    });
-
-    // Fetch AI Explanation
-    const engineOutput = {
-        monthly_surplus: surplus_data.summary.monthly_surplus,
-        safe: allocations.safe,
-        balanced: allocations.balanced,
-        growth: allocations.growth
-    };
-
-    fetch('{{ url_for("dashboard.explain") }}', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(engineOutput)
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('ai-explanation').innerHTML = `<p>${data.explanation.replace(/\n/g, '<br>')}</p>`;
-    })
-    .catch(error => {
-        document.getElementById('ai-explanation').innerHTML = `<p style="color: red;">Failed to load explanation.</p>`;
-    });
+<!-- Pass data to JS -->
+<script id="engine-data" type="application/json">
+{{ {
+    "monthly_surplus": s.monthly_surplus,
+    "net_monthly_income": s.net_monthly_income,
+    "total_monthly_expenses": s.total_monthly_expenses,
+    "tax_monthly": s.get('tax_monthly', 0),
+    "emergency_fund_monthly": s.emergency_fund_monthly,
+    "safety_buffer_monthly": s.get('safety_buffer_monthly', 0),
+    "surplus_is_positive": is_positive,
+    "allocations": allocations
+} | tojson }}
 </script>
 
+<script src="{{ url_for('static', filename='js/formatters.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+const BASE_SURPLUS = {{ s.monthly_surplus }};
+const BASE_INCOME  = {{ s.net_monthly_income }};
+const BASE_EXPENSES = {{ s.total_monthly_expenses }};
+
+// What-If logic
+function recalcWhatIf() {
+    const inc = parseFloat(document.getElementById('wi_income').value) || 0;
+    const exp = parseFloat(document.getElementById('wi_expenses').value) || 0;
+    document.getElementById('wi_income_val').textContent  = formatIN(inc);
+    document.getElementById('wi_expenses_val').textContent = formatIN(exp);
+    const newSurplus = inc - exp;
+    const delta = newSurplus - BASE_SURPLUS;
+    const surplusEl = document.getElementById('wi_surplus_val');
+    surplusEl.textContent = formatIN(Math.max(0, newSurplus));
+    surplusEl.style.color = newSurplus > 0 ? 'var(--success)' : 'var(--danger)';
+    const deltaEl = document.getElementById('wi_delta');
+    if (delta >= 0) {
+        deltaEl.className = 'whatif-delta';
+        deltaEl.textContent = '+' + formatIN(Math.abs(delta)) + '/month more than your current plan';
+    } else {
+        deltaEl.className = 'whatif-delta negative';
+        deltaEl.textContent = '-' + formatIN(Math.abs(delta)) + '/month less than your current plan';
+    }
+}
+{% if is_positive %}
+// Init what-if display
+document.getElementById('wi_income').dispatchEvent(new Event('input'));
+recalcWhatIf();
+{% endif %}
+
+// Projection toggle
+let projMode = 'future';
+function toggleProjection(mode, btn) {
+    projMode = mode;
+    document.querySelectorAll('#proj-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (window.projChart) { window.projChart.destroy(); }
+    initProjection({{ s.monthly_surplus }}, mode);
+}
+</script>
 {% endblock %}

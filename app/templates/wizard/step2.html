@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "wizard/macros.html" import progress %}
+{% block title %}Step 2: Income - BankEase{% endblock %}
+{% block content %}
+<div style="max-width: 560px; margin: 0 auto;">
+    {{ progress(2) }}
+    <h2 style="margin-bottom:4px;">Step 2: Your Income</h2>
+    <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px;">Enter your actual take-home (in-hand) amount — after all deductions.</p>
+
+    <div class="card">
+        <form method="POST" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label>Income Frequency</label>
+                <div class="toggle-group" id="freq-toggle">
+                    <button type="button" class="active" data-freq="monthly" onclick="setFreq('monthly',this)">Monthly</button>
+                    <button type="button" data-freq="annual" onclick="setFreq('annual',this)">Annual</button>
+                </div>
+                <input type="hidden" name="income_freq" id="income_freq" value="{{ data.get('income_freq','monthly') }}">
+            </div>
+
+            <div class="form-group">
+                <label for="income_amount">In-Hand Income (<span id="freq-label">per month</span>) <span style="color:var(--danger)">*</span></label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="income_amount" name="income_amount" min="1000"
+                        value="{{ data.get('income_amount','') }}" required
+                        placeholder="e.g. 75000" aria-describedby="income-help2">
+                </div>
+                <span id="income-help2" class="help">Net take-home after PF, tax, etc. is deducted</span>
+            </div>
+
+            <div class="form-group" id="gross-section">
+                <label for="gross_income">Annual Gross / CTC (for tax calculation)</label>
+                <div class="input-prefix"><span>₹</span>
+                    <input type="number" id="gross_income" name="gross_income" min="0"
+                        value="{{ data.get('gross_income','') }}"
+                        placeholder="e.g. 1200000">
+                </div>
+                <span class="help">Optional. Helps compute tax savings precisely. Leave blank to estimate.</span>
+            </div>
+
+            <div style="display:flex; gap:12px; justify-content:space-between; margin-top:8px;">
+                <a href="{{ url_for('wizard.step', step_id=1) }}" class="btn btn-secondary">← Back</a>
+                <button type="submit" class="btn btn-primary">Next: Expenses →</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+function setFreq(freq, btn) {
+    document.querySelectorAll('#freq-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('income_freq').value = freq;
+    document.getElementById('freq-label').textContent = freq === 'monthly' ? 'per month' : 'per year';
+}
+const savedFreq = '{{ data.get("income_freq","monthly") }}';
+if (savedFreq === 'annual') {
+    document.querySelector('[data-freq="annual"]').classList.add('active');
+    document.querySelector('[data-freq="monthly"]').classList.remove('active');
+    document.getElementById('freq-label').textContent = 'per year';
+}
+</script>
+{% endblock %}
