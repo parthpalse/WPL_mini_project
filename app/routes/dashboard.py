@@ -41,7 +41,7 @@ def index():
     )
 
 from flask import jsonify
-from app.llm.explain import explain_plan
+from app.llm.explain import explain_plan, explain_step
 
 @dashboard_bp.route('/explain', methods=['POST'])
 def explain():
@@ -51,6 +51,15 @@ def explain():
         
     explanation = explain_plan(data)
     return jsonify({'explanation': explanation})
+
+@dashboard_bp.route('/explain_step', methods=['POST'])
+def explain_step_route():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided.'}), 400
+    
+    explanation = explain_step(data)
+    return jsonify(explanation)
 
 @dashboard_bp.route('/simulator', methods=['GET'])
 def simulator():
