@@ -1,13 +1,22 @@
 import os
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
 
-db = SQLAlchemy()
-login_manager = LoginManager()
+try:
+    from flask import Flask
+    from flask_sqlalchemy import SQLAlchemy
+    from flask_login import LoginManager
+
+    db = SQLAlchemy()
+    login_manager = LoginManager()
+except ImportError:
+    Flask = None
+    db = None
+    login_manager = None
 
 
 def create_app(config_override=None):
+    if Flask is None:
+        raise RuntimeError("Flask is required to run the web application.")
+
     app = Flask(__name__)
 
     # Default config

@@ -1,10 +1,66 @@
 {
-  "last_updated": "2026-09-15",
+  "last_updated": "2026-09-22",
+  "version": "2026.1",
   "products": [
-    {"name": "Savings", "return_pct": 3.5, "risk": "very_low", "liquidity": "high"},
-    {"name": "RD", "return_pct": 6.5, "risk": "low", "liquidity": "medium"},
-    {"name": "FD", "return_pct": 7.0, "risk": "low", "liquidity": "low_medium"},
-    {"name": "Debt Fund", "return_pct": 7.5, "risk": "moderate", "liquidity": "medium_high"},
-    {"name": "Equity Fund", "return_pct": 12.0, "risk": "high", "liquidity": "high"}
+    {
+      "name": "Savings",
+      "return_pct": 3.5,
+      "return_range": {"low": 3.0, "base": 3.5, "high": 4.0},
+      "volatility_pct": 0.5,
+      "risk": "very_low",
+      "liquidity": "high",
+      "lock_in_months": 0,
+      "tax_treatment": "slab",
+      "min_allocation_pct": 5.0,
+      "max_allocation_pct": 50.0
+    },
+    {
+      "name": "RD",
+      "return_pct": 6.5,
+      "return_range": {"low": 6.0, "base": 6.5, "high": 7.0},
+      "volatility_pct": 1.0,
+      "risk": "low",
+      "liquidity": "medium",
+      "lock_in_months": 6,
+      "tax_treatment": "slab",
+      "min_allocation_pct": 0.0,
+      "max_allocation_pct": 50.0
+    },
+    {
+      "name": "FD",
+      "return_pct": 7.0,
+      "return_range": {"low": 6.5, "base": 7.0, "high": 7.5},
+      "volatility_pct": 1.0,
+      "risk": "low",
+      "liquidity": "low_medium",
+      "lock_in_months": 12,
+      "tax_treatment": "slab",
+      "min_allocation_pct": 0.0,
+      "max_allocation_pct": 60.0
+    },
+    {
+      "name": "Debt Fund",
+      "return_pct": 7.5,
+      "return_range": {"low": 6.5, "base": 7.5, "high": 8.5},
+      "volatility_pct": 3.5,
+      "risk": "moderate",
+      "liquidity": "medium_high",
+      "lock_in_months": 0,
+      "tax_treatment": "slab",
+      "min_allocation_pct": 0.0,
+      "max_allocation_pct": 60.0
+    },
+    {
+      "name": "Equity Fund",
+      "return_pct": 12.0,
+      "return_range": {"low": 9.0, "base": 12.0, "high": 15.0},
+      "volatility_pct": 15.0,
+      "risk": "high",
+      "liquidity": "high",
+      "lock_in_months": 0,
+      "tax_treatment": "equity_capital_gains",
+      "min_allocation_pct": 0.0,
+      "max_allocation_pct": 75.0
+    }
   ]
 }

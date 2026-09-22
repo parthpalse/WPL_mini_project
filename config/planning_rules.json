@@ -1,0 +1,35 @@
+{
+  "last_updated": "2026-09-22",
+  "emergency_fund": {
+    "base_months": {
+      "salaried_stable": 3,
+      "salaried_moderate": 6,
+      "salaried_variable": 9,
+      "self_employed_stable": 6,
+      "self_employed_moderate": 9,
+      "self_employed_variable": 12,
+      "variable_variable": 12
+    },
+    "dependent_addon_months": 1,
+    "min_months": 3,
+    "max_months": 12,
+    "liquid_instruments": ["Savings", "FD"]
+  },
+  "buffer_pct": 5.0,
+  "debt_rules": {
+    "high_interest_threshold_pct": 12.0,
+    "prepay_margin_over_return_pct": 2.0,
+    "disallow_investing_with_credit_card_debt": true
+  },
+  "diversification_caps": {
+    "max_single_product_pct": 60.0,
+    "max_equity_conservative_pct": 20.0,
+    "max_equity_balanced_pct": 50.0,
+    "max_equity_growth_pct": 80.0
+  },
+  "glide_path": {
+    "short_term_months": 12,
+    "medium_term_months": 36,
+    "long_term_months": 60
+  }
+}

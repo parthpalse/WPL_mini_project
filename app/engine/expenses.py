@@ -1,39 +1,59 @@
-"""Expense aggregation — fixed and variable expenses.
+"""Expense aggregation — Essential, Discretionary, and Sinking Fund expenses.
 
-Aggregates user-provided expense items into monthly and annual totals.
+Calculates monthly and annual expense totals with Decimal precision.
+Zero external framework dependencies.
 """
+
+from decimal import Decimal
+from typing import Union, List, Dict, Optional, Any
+from app.engine.money import to_decimal, round_inr
+from app.engine.models import Expenses, ExpenseItem
 
 
 def calculate_expenses(
-    fixed: list[dict] | None = None,
-    variable: list[dict] | None = None
-) -> dict:
-    """Aggregate fixed and variable expenses.
+    fixed: Optional[List[Dict]] = None,
+    variable: Optional[List[Dict]] = None,
+    expenses_obj: Optional[Expenses] = None
+) -> Dict[str, Any]:
+    """Aggregate expenses into essential, discretionary, and sinking funds.
 
-    Each expense item is a dict with:
-        - 'name': str (e.g., 'Rent', 'Groceries')
-        - 'amount': float (monthly amount in INR)
-
-    Args:
-        fixed: List of fixed expense dicts (rent, EMIs, insurance, etc.).
-        variable: List of variable expense dicts (food, transport, etc.).
-
-    Returns:
-        Dict with keys: fixed_expenses (list), variable_expenses (list),
-        total_fixed_monthly, total_variable_monthly, total_monthly, total_annual.
+    Backward-compatible with original (fixed, variable) inputs.
     """
-    fixed = fixed or []
-    variable = variable or []
+    if expenses_obj is not None:
+        items = expenses_obj.items
+    else:
+        items = []
+        for f in (fixed or []):
+            cat = f.get('category', 'essential')
+            items.append(ExpenseItem(name=f.get('name', 'Fixed Expense'), amount=to_decimal(f.get('amount', 0)), category=cat))
+        for v in (variable or []):
+            cat = v.get('category', 'discretionary')
+            items.append(ExpenseItem(name=v.get('name', 'Variable Expense'), amount=to_decimal(v.get('amount', 0)), category=cat))
 
-    total_fixed = sum(item.get('amount', 0) for item in fixed)
-    total_variable = sum(item.get('amount', 0) for item in variable)
-    total_monthly = total_fixed + total_variable
+    exp = Expenses(items=items)
+
+    total_essential = exp.total_essential_monthly
+    total_discretionary = exp.total_discretionary_monthly
+    total_sinking = exp.total_sinking_fund_monthly
+    total_monthly = exp.total_monthly
+    total_annual = round_inr(total_monthly * Decimal('12'), places=2)
+
+    # Calculate fixed vs variable for backward compatibility
+    total_fixed = sum((to_decimal(f.get('amount', 0)) for f in (fixed or [])), Decimal('0.00'))
+    total_variable = sum((to_decimal(v.get('amount', 0)) for v in (variable or [])), Decimal('0.00'))
+    if not fixed and not variable:
+        total_fixed = total_essential
+        total_variable = total_discretionary + total_sinking
 
     return {
-        'fixed_expenses': fixed,
-        'variable_expenses': variable,
-        'total_fixed_monthly': round(total_fixed, 2),
-        'total_variable_monthly': round(total_variable, 2),
-        'total_monthly': round(total_monthly, 2),
-        'total_annual': round(total_monthly * 12, 2)
+        'fixed_expenses': fixed or [],
+        'variable_expenses': variable or [],
+        'items': [{'name': i.name, 'amount': float(i.amount), 'category': i.category} for i in exp.items],
+        'total_essential_monthly': float(round_inr(total_essential, 2)),
+        'total_discretionary_monthly': float(round_inr(total_discretionary, 2)),
+        'total_sinking_fund_monthly': float(round_inr(total_sinking, 2)),
+        'total_fixed_monthly': float(round_inr(total_fixed, 2)),
+        'total_variable_monthly': float(round_inr(total_variable, 2)),
+        'total_monthly': float(round_inr(total_monthly, 2)),
+        'total_annual': float(round_inr(total_annual, 2))
     }
