@@ -78,10 +78,11 @@ def create_app(config_override=None):
     app.jinja_env.globals['abs'] = abs
 
     # Register blueprints
-    from app.routes.profile import profile_bp
+    from app.routes.profile import profile_bp, root_bp
     from app.routes.plan import plan_bp
     from app.routes.dashboard import dashboard_bp
     from app.routes.wizard import wizard_bp
+    app.register_blueprint(root_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(plan_bp)
     app.register_blueprint(dashboard_bp)

@@ -3,6 +3,16 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 profile_bp = Blueprint('profile', __name__, url_prefix='/profile')
 
 
+# ── Root redirect ─────────────────────────────────────────────────────────────
+from flask import Blueprint as _RootBP
+root_bp = _RootBP('root', __name__)
+
+@root_bp.route('/')
+def home():
+    return redirect(url_for('wizard.index'))
+
+
+
 @profile_bp.route('/', methods=['GET'])
 def index():
     return render_template('onboarding/tier1.html')
