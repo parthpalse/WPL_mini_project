@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: bankease
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && flask db upgrade
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 60 "run:app"
+    envVars:
+      - key: FLASK_APP
+        value: run.py
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bankease-db
+          property: connectionString
+      - key: OLLAMA_URL
+        value: http://localhost:11434/api/generate
+      - key: OLLAMA_MODEL
+        value: llama3.2
+
+databases:
+  - name: bankease-db
+    plan: free
+    databaseName: bankease

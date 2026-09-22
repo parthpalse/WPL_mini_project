@@ -8,3 +8,10 @@ htmlcov/
 .env
 venv/
 .venv/
+.hypothesis/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+instance/
