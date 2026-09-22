@@ -49,6 +49,10 @@ def create_app(config_override=None):
     login_manager.init_app(app)
     login_manager.login_view = 'profile.index'
 
+    @login_manager.user_loader
+    def load_user(user_id):
+        return None
+
     # Secure Headers
     @app.after_request
     def add_security_headers(response):
