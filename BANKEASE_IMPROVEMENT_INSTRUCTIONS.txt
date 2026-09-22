@@ -1,0 +1,396 @@
+==========================================================================
+BANKEASE - IMPROVEMENT INSTRUCTIONS FOR THE CODING AGENT (ANTIGRAVITY IDE)
+==========================================================================
+
+HOW TO USE THIS FILE
+--------------------
+1. Put this file in the repo root (e.g. INSTRUCTIONS.md or .txt).
+2. Tell the agent: "Read INSTRUCTIONS file fully. Work phase by phase.
+   Do NOT start Phase N+1 until Phase N acceptance criteria pass.
+   Produce an implementation plan before coding each phase, and a short
+   walkthrough (what changed, how verified) after each phase."
+3. The research bot (SciSpace) output goes into /research/ as JSON + notes.
+   The agent must treat that output as the source for config values, and
+   must NOT invent tax slabs, rates, or returns from its own memory.
+4. Commit after each phase with a clear message.
+
+CONTEXT
+-------
+BankEase = AI-assisted personal financial planning web app (Flask, SQLite,
+scipy/PuLP, Chart.js, local Ollama LLM). Target user: Indian salaried /
+self-employed individual (currency INR, products: Savings, RD, FD, Debt Fund,
+Equity Fund). Core principle: MATH DECIDES NUMBERS, AI ONLY EXPLAINS.
+
+CURRENT PROBLEMS (reported by owner)
+  - User experience is poor.
+  - Math is not trustworthy / not working well.
+  - Output (results page + AI explanation) is not good enough.
+
+NON-NEGOTIABLE PRINCIPLES (keep)
+  - Deterministic Python engine; no LLM in any calculation path.
+  - No external API calls; LLM only via local Ollama.
+  - All financial parameters in versioned JSON config; none hard-coded.
+  - No scraped/live data; rates are dated snapshots with source + as_of.
+  - Illustrative-only disclaimer stays visible (do not present as advice).
+
+
+==========================================================================
+PHASE 0 - AUDIT (NO BEHAVIOR CHANGES YET)
+==========================================================================
+Goal: find out what is actually wrong before fixing anything.
+
+Tasks
+  0.1 Read the whole codebase. Write AUDIT.md containing:
+      - Architecture map (modules, data flow, what calls what).
+      - Every formula in app/engine/ listed with: file, function, inputs,
+        formula used, and whether it is correct (with reasoning).
+      - Every hard-coded number (tax slab, rate, threshold, months, %)
+        that is NOT in config/. List file + line.
+      - Places where floats are used for money.
+      - Places where Flask/request/DB code leaks into engine code.
+      - What the LLM currently receives as input and how its output is used.
+      - UX issues found by actually running the app and going through
+        the full flow (use the browser agent; take screenshots).
+      - Missing validation and edge cases that crash or give nonsense
+        (income 0, expenses > income, negative numbers, huge numbers,
+        empty fields, decimals, non-numeric).
+  0.2 Run the existing tests. Report pass/fail and what they cover.
+  0.3 Create 10 "golden" scenarios (see Phase 1.7) and record what the
+      CURRENT code outputs for each, so we can compare before/after.
+
+Acceptance: AUDIT.md exists and is specific (file names, line numbers,
+concrete wrong outputs), not generic.
+
+
+==========================================================================
+PHASE 1 - MATH ENGINE REBUILD (highest priority)
+==========================================================================
+Rule: engine = pure functions, no Flask, no DB, no I/O, fully typed,
+fully unit-tested. Same input -> same output, always.
+
+1.1 MONEY REPRESENTATION
+  - Use decimal.Decimal (or integer paise) for all money. No float money.
+  - One rounding policy, documented, applied at defined points only
+    (round at display and at final outputs, not mid-calculation).
+  - Define a Money helper / constants for rupee formatting.
+
+1.2 DATA MODELS (dataclasses or pydantic)
+  - UserProfile: age, city_tier, household (adults/dependents), employment
+    type (salaried / self-employed / variable), income stability,
+    risk profile, tax regime preference (auto / old / new).
+  - Income: gross annual (or monthly), components if salaried (basic, HRA,
+    special allowance, employer NPS, EPF), other income.
+  - Expenses: split into ESSENTIAL (rent, groceries, utilities, transport,
+    insurance premiums, school fees) vs DISCRETIONARY (dining, travel,
+    subscriptions, shopping) vs ANNUAL/IRREGULAR (converted to monthly
+    sinking fund).
+  - Debts: each with type, outstanding, interest rate, EMI, tenure left,
+    prepayment allowed/penalty, secured/unsecured.
+  - Goals: name, target amount (today's money), horizon in months,
+    priority. (At minimum: emergency fund, one or more investment goals,
+    retirement.)
+  - Every model validates itself and returns clear, human-readable errors.
+
+1.3 TAX ENGINE (config-driven, both regimes)
+  - Load slabs, rebate, standard deduction, surcharge tiers, cess, and
+    deduction caps from config/tax_<FY>.json. Nothing hard-coded.
+  - Compute tax under BOTH old and new regime and recommend the lower one,
+    showing the difference in rupees.
+  - Must handle: slab tax, Section 87A-type rebate WITH marginal relief,
+    standard deduction, surcharge WITH marginal relief, 4% cess,
+    old-regime deductions (80C cap, 80D, HRA exemption formula, home-loan
+    interest, 80CCD(1B)), employer NPS deduction allowed in new regime.
+  - Capital gains tax rules per asset for post-tax return modeling
+    (equity LTCG/STCG, debt fund gains at slab, FD/RD interest at slab,
+    savings interest deduction limit). Values come from research/config.
+  - Output: net in-hand annual and monthly, effective rate, marginal rate.
+  - The MARGINAL tax rate feeds the optimizer (post-tax returns depend on
+    user's slab - this is a major correctness improvement).
+  - Confirm which tax-law version applies to the financial year in use
+    (the Income-tax Act transition) from research output; version the
+    config file by FY and let the user/system pick the FY.
+
+1.4 SURPLUS PIPELINE (rewrite with explicit, ordered, traceable steps)
+  Step A  Gross income -> tax -> net monthly in-hand
+  Step B  Subtract mandatory deductions already in payslip (EPF, PT) if
+          user enters gross; avoid double counting.
+  Step C  Subtract essential expenses
+  Step D  Subtract minimum debt payments (EMIs)
+  Step E  Subtract irregular-expense sinking fund (annual costs / 12)
+  Step F  Subtract safety buffer (config %, e.g. 5-10% of net income)
+  Step G  = "Investable capacity before priorities"
+  Step H  Allocate in priority order:
+            1. Emergency fund top-up (until target months reached)
+            2. High-interest debt prepayment (see 1.5 threshold rule)
+            3. Insurance gap (if flagged)
+            4. Goal investing via optimizer
+  Step I  Discretionary spending is shown separately: the tool shows
+          "what you could invest if you cut discretionary by X%" as a
+          what-if, not silently removed.
+  - EVERY step returns a CalcStep object: label, formula text, inputs,
+    result, plain-English note. The full list is the "calculation trace"
+    used by the UI (waterfall + "how was this calculated") and passed to
+    the LLM. This is the single source of truth for numbers.
+  - Handle deficit case: if capacity <= 0, do not output 0 silently.
+    Return a DEFICIT plan: size of gap, top 3 levers to close it, and the
+    minimum change needed to reach break-even.
+
+1.5 EMERGENCY FUND + DEBT LOGIC
+  - Target months = f(income stability, dependents, employment type),
+    from config (e.g. 3 / 6 / 9 / 12). Based on ESSENTIAL expenses + EMIs,
+    not total spending.
+  - Show months to reach target at current capacity.
+  - Emergency fund goes in liquid instruments only (savings / liquid
+    fund / short FD) - enforce in allocation.
+  - Debt: implement avalanche (default) and snowball (option). Rule:
+    compare debt interest rate against expected POST-TAX return of the
+    best product for that horizon; prepay if debt rate exceeds it by a
+    config margin. Credit-card / personal-loan debt always first. Show
+    interest saved and months saved from prepayment.
+  - Never recommend investing while carrying revolving credit-card debt.
+
+1.6 OPTIMIZER (deterministic, explainable, constrained)
+  - Inputs: monthly investable amount, goals with horizons, risk profile,
+    marginal tax rate, product table (post-tax expected return, volatility,
+    liquidity, lock-in, min/max allocation) from config.
+  - Per-goal allocation (goal horizon drives product eligibility):
+        horizon < 12m   -> only Savings/liquid/short FD
+        1-3y            -> RD/FD/short debt, small hybrid at most
+        3-5y            -> debt-heavy + limited equity
+        5y+             -> equity-tilted per risk profile
+    Use a glide path: equity share decreases as goal date approaches.
+  - Objective: maximize expected post-tax, inflation-adjusted return
+    subject to: risk cap by profile (portfolio volatility or max equity %),
+    liquidity needs, lock-ins, min/max per product, allocations sum to
+    exactly the investable amount, non-negative.
+  - Use PuLP/scipy but ALSO provide a simple rule-based fallback and a
+    sanity check that the optimizer result is never worse than a naive
+    benchmark (e.g. 100% FD, or 60/40) - if it is, fall back.
+  - Prevent degenerate outputs (100% in one product) via diversification
+    caps in config.
+  - Explain-why data: for every allocation return "reasons" (constraint
+    that bound, horizon rule used) so the LLM/UI can justify it.
+
+1.7 PROJECTIONS
+  - Correct formulas, documented and unit-tested:
+      * SIP future value (monthly compounding, annuity due/immediate -
+        pick one and document)
+      * RD with quarterly compounding as Indian banks do
+      * FD with quarterly compounding, maturity value, post-tax value
+      * Step-up SIP (annual % increase)
+      * Inflation-adjusted (real) values: show "in today's rupees"
+  - Do not show a single point forecast. Show 3 scenarios
+    (conservative / base / optimistic) using config return ranges, and
+    optionally a Monte Carlo band (fixed seed, deterministic) for equity.
+  - Show years-to-goal and shortfall/surplus vs goal target.
+  - Explicit label: "illustrative, not guaranteed".
+
+1.8 VALIDATION + SANITY GUARDS
+  - Input bounds from config (age 18-80, income > 0, etc.).
+  - Cross-field checks (expenses > 150% of income -> confirm prompt).
+  - Every engine output passes invariants before display:
+      allocations sum == investable amount (to the paisa),
+      no negative allocations, net income <= gross income,
+      tax >= 0, total outflow == income.
+    If an invariant fails: log, show a friendly error, never show wrong
+    numbers.
+
+1.9 TESTS (this is what makes the math trustworthy)
+  - Hand-calculated golden tests: at least 10 scenarios across income
+    levels (e.g. 3L, 6L, 9L, 12L, 15L, 25L, 50L, 1Cr+), both regimes,
+    rebate boundary cases (just below/above threshold), surcharge
+    boundary, deficit case, high-debt case, high-income-no-debt case,
+    variable-income freelancer. Expected values come from research bot's
+    worked examples (research/test_cases.json) and are cross-checked by
+    the agent independently.
+  - Property-based tests (hypothesis): more income never reduces net
+    income by more than marginal logic allows; allocations always sum to
+    capacity; results deterministic; optimizer never violates caps.
+  - Regression: golden scenarios from Phase 0 compared before/after;
+    every difference must be explained in a CHANGELOG (bug fixed vs
+    intended change).
+  - Target: >=90% coverage on app/engine/.
+
+Acceptance for Phase 1
+  - All golden and property tests pass.
+  - No float money, no hard-coded financial constants in engine.
+  - Engine importable and runnable with no Flask installed.
+  - CalcStep trace produced for every run.
+
+
+==========================================================================
+PHASE 2 - CONFIG SYSTEM
+==========================================================================
+2.1 Files (all versioned + schema-validated at startup; app refuses to
+    start with invalid config and prints which field is wrong):
+      config/tax_<FY>.json        slabs, rebate, deductions, surcharge, cess
+      config/products.json        per product: expected return low/base/high,
+                                  volatility, liquidity, lock-in, tax
+                                  treatment, min/max allocation
+      config/macro.json           inflation assumption(s), risk-free rate
+      config/planning_rules.json  emergency fund months, buffer %, debt
+                                  prepay margin, glide path, risk-profile
+                                  caps, expense benchmarks by city tier
+      config/ui_copy.json         (optional) labels/help texts
+2.2 Every value has: source (URL or document name), as_of date,
+    confidence note, and units. Add config/_meta.json with version and
+    last_reviewed date. Show "Rates as of <date>" in the UI footer.
+2.3 Use pydantic or jsonschema for validation. Add a test that loads all
+    config files and validates them.
+2.4 Ingest research/ JSON from the SciSpace bot: write a small script
+    (scripts/import_research.py) that validates and converts it into the
+    config files, and fails loudly on missing sources or dates.
+
+
+==========================================================================
+PHASE 3 - AI EXPLANATION LAYER (Ollama) - MAKE IT TRUSTWORTHY
+==========================================================================
+3.1 Input to LLM = structured JSON only: the CalcStep trace, final
+    numbers, allocation reasons, warnings, user goals. Never raw form data.
+3.2 System prompt rules:
+      - Use ONLY numbers present in the provided JSON.
+      - Never compute, estimate, or round new numbers.
+      - Never promise returns; use "illustrative" language.
+      - Do not tell user to buy/sell specific named securities.
+      - Plain language, short, indian numbering (lakh/crore), rupee sign.
+      - Fixed output structure (JSON with fields: headline, what_this_means,
+        three_key_actions, watch_outs, plain_explanations_by_step).
+3.3 POST-VALIDATION: extract every number from the LLM output and verify
+    each appears in the source JSON (allow formatting variants such as
+    1,50,000 vs 150000 vs 1.5 lakh). If any number is unverified, discard
+    and use the deterministic template explanation instead.
+3.4 FALLBACK: Jinja/template-based explanation that always works, used if
+    Ollama is down, slow (timeout e.g. 20s), or output fails validation.
+    UI shows a small "AI explanation" vs "Standard explanation" label.
+3.5 Low temperature (0-0.3), fixed seed where supported, streaming to UI,
+    cache by hash of input JSON.
+3.6 Add a "Explain this number" button on every key figure: sends only
+    the relevant CalcStep to the LLM (small, fast, precise).
+3.7 Tests: mock Ollama; test fallback, number-validation rejection, and
+    timeout handling. Add a small eval set (20 scenarios) checking the
+    explanation contains no invented numbers.
+3.8 Config for model name and Ollama URL via env vars; document
+    `ollama pull` commands and recommended model + minimum RAM.
+
+
+==========================================================================
+PHASE 4 - USER EXPERIENCE OVERHAUL
+==========================================================================
+Design goal: a first-time user gets a meaningful answer in under 2 minutes
+with as few questions as possible, then can refine.
+
+4.1 INPUT FLOW
+  - Multi-step wizard (5 steps max), progress indicator, back/next, and
+    autosave of draft so refresh does not lose data:
+      1 About you (age, city, household, job type)
+      2 Income (monthly or annual toggle; gross vs in-hand toggle)
+      3 Expenses (start with 5-6 category sliders + "add details";
+        smart defaults from city-tier benchmarks, clearly labeled as
+        estimates the user can change)
+      4 Debts & existing savings (optional, skippable)
+      5 Goals & risk (simple plain-language risk questions, not jargon)
+  - "Quick estimate" mode: 4 fields (income, rent, EMIs, other expenses)
+    -> instant rough result, with prompt to refine.
+  - Inline validation and friendly messages; numeric inputs with Indian
+    grouping as the user types; prefix rupee sign; helper text and
+    tooltips for jargon (RD, SIP, 80C, LTCG...) in plain words.
+  - Never show an empty scary error page.
+
+4.2 RESULTS PAGE HIERARCHY (top to bottom)
+  1. Headline card: "You can safely invest Rs X per month" (or deficit
+     message with the fix) + confidence/assumption chip.
+  2. Waterfall chart: income -> tax -> essentials -> EMIs -> buffer ->
+     emergency fund -> investable (Chart.js).
+  3. "Your plan" - ordered action checklist (Step 1: build emergency fund,
+     Step 2: clear the 24% loan, Step 3: start SIP...) with amounts.
+  4. Allocation donut/stack + table per product, with plain reason each.
+  5. Projection chart with conservative/base/optimistic bands, toggle
+     "today's rupees" vs "future rupees".
+  6. Tax insight card: old vs new regime, rupees saved.
+  7. What-if panel: sliders (spend less on X, increase income, change
+     horizon) -> live recalculation via a light JSON endpoint, showing the
+     delta ("+Rs 3,200/month").
+  8. AI explanation panel (streamed) with the deterministic fallback.
+  9. "How this was calculated" expandable = CalcStep trace.
+  10. Assumptions drawer (rates, as-of date, sources) + disclaimer.
+
+4.3 VISUAL / UX POLISH
+  - Mobile-first responsive layout; test at 360px width.
+  - Consistent design system (spacing scale, type scale, color tokens),
+    accessible contrast (WCAG AA), keyboard navigable, aria labels on
+    charts with text alternatives.
+  - Indian number formatting everywhere (1,50,000; 1.5 L; 2.3 Cr) via one
+    shared helper (Python + JS) with tests.
+  - Loading skeletons; no blank flashes; friendly empty/error states.
+  - Save and reopen scenarios; compare two scenarios side by side;
+    export a clean PDF/print view of the plan.
+  - Privacy note: data stays local; option to delete all data.
+4.4 Use the browser agent to walk the complete flow on desktop and mobile
+    viewports, capture screenshots, and list any remaining UX friction.
+
+Acceptance for Phase 4
+  - A new user completes quick-estimate in <60s and full plan in <3 min.
+  - No page shows raw floats, NaN, None, or unformatted numbers.
+  - Lighthouse accessibility >= 90 on the result page.
+
+
+==========================================================================
+PHASE 5 - ARCHITECTURE, QUALITY, DEVOPS
+==========================================================================
+  5.1 Layering: routes (thin) -> services -> engine (pure) ; llm separate;
+      models (DB) only used by services. Engine must not import Flask/DB.
+  5.2 Flask app factory, blueprints, config per environment, CSRF
+      protection, secure headers, rate limiting on LLM endpoint.
+  5.3 Server-side validation always (never trust the frontend).
+  5.4 Logging (structured), no PII in logs, request IDs.
+  5.5 Tooling: ruff (lint+format), mypy on engine, pytest + coverage,
+      pre-commit hooks, GitHub Actions CI running lint + types + tests.
+  5.6 Docker + docker-compose (app + ollama), .env.example, one-command
+      setup; README updated with real screenshots, architecture diagram,
+      and "how the math works" doc (docs/METHODOLOGY.md linking each
+      formula to its test).
+  5.7 DB: migrations (Alembic), Postgres-compatible schema, no data that
+      the user did not consent to store.
+  5.8 Add docs/ASSUMPTIONS.md listing every assumption and its source.
+
+
+==========================================================================
+PHASE 6 - COMPLIANCE + SAFETY WORDING
+==========================================================================
+  - Keep it educational/illustrative; avoid language such as "you should
+    buy X fund". Recommend asset CLASSES and amounts, not named products.
+  - Disclaimer visible on results page and PDF export; show data as-of
+    date and "not financial advice / consult a qualified advisor".
+  - Do not collect PAN, bank account numbers, or other sensitive IDs.
+  - Have research/regulatory notes (SEBI advisory rules) reviewed before
+    any public launch; this is a check-in for the owner, not for the agent
+    to decide.
+
+
+==========================================================================
+DEFINITION OF DONE (WHOLE PROJECT)
+==========================================================================
+  [ ] AUDIT.md written and every issue in it resolved or explicitly
+      deferred with a reason.
+  [ ] Engine: Decimal money, zero hard-coded financial constants, both tax
+      regimes, deficit handling, traceable CalcSteps.
+  [ ] Golden + property tests pass; >=90% engine coverage.
+  [ ] Config schema-validated, sourced, dated, versioned.
+  [ ] LLM: structured input, number post-validation, template fallback.
+  [ ] UX: wizard, quick mode, waterfall, action plan, what-if, scenarios.
+  [ ] Mobile and accessibility checks pass.
+  [ ] CI green; Docker one-command run; README + METHODOLOGY updated.
+
+WORKING RULES FOR THE AGENT
+  - If a needed value (tax slab, rate, return) is missing from research/
+    or config/, STOP and add it to a TODO_RESEARCH.md list for the owner
+    instead of guessing.
+  - Never silently change a formula; every math change gets a test and a
+    CHANGELOG line explaining why.
+  - Prefer small, reviewable commits per task.
+  - When unsure between two designs, write both options with trade-offs in
+    the plan and pick the simpler one.
+
+==========================================================================
+END
+==========================================================================
