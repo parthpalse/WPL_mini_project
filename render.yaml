@@ -5,6 +5,7 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt && flask db upgrade
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 60 "run:app"
+    healthCheckPath: /health
     envVars:
       - key: FLASK_APP
         value: run.py

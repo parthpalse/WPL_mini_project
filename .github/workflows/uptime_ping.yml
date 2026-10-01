@@ -1,0 +1,29 @@
+name: Uptime Keep-Alive Bot
+
+on:
+  schedule:
+    # Run every 10 minutes (keeps free tier instances like Render awake)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    # Allows manual trigger from the GitHub Actions tab
+
+jobs:
+  ping:
+    name: Ping BankEase Health Endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          TARGET_URL="${{ secrets.APP_URL }}"
+          if [ -z "$TARGET_URL" ]; then
+            echo "APP_URL secret is not set. Please set the repository secret APP_URL to your deployed URL (e.g. https://bankease.onrender.com/health)."
+            exit 0
+          fi
+          echo "Pinging $TARGET_URL..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$TARGET_URL")
+          echo "Response code: $STATUS"
+          if [ "$STATUS" -ne 200 ]; then
+            echo "::warning ::Endpoint returned status $STATUS"
+          else
+            echo "Service is healthy!"
+          fi

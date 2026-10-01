@@ -4,12 +4,16 @@ profile_bp = Blueprint('profile', __name__, url_prefix='/profile')
 
 
 # ── Root redirect ─────────────────────────────────────────────────────────────
-from flask import Blueprint as _RootBP
+from flask import Blueprint as _RootBP, jsonify
 root_bp = _RootBP('root', __name__)
 
 @root_bp.route('/')
 def home():
     return redirect(url_for('wizard.index'))
+
+@root_bp.route('/health')
+def health():
+    return jsonify({"status": "healthy", "service": "bankease"}), 200
 
 
 
