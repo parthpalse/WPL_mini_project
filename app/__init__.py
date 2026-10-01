@@ -86,10 +86,13 @@ def create_app(config_override=None):
     from app.routes.plan import plan_bp
     from app.routes.dashboard import dashboard_bp
     from app.routes.wizard import wizard_bp
+    from app.routes.chat import chat_bp
     app.register_blueprint(root_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(plan_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(wizard_bp)
+    app.register_blueprint(chat_bp)
+    csrf.exempt(chat_bp)  # SSE streaming + CSRF form tokens are unreliable
 
     return app
