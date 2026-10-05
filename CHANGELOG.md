@@ -38,3 +38,7 @@ This changelog documents the exact numerical differences between the Phase 0 bas
 3. **Decoupled Architecture**: Financial engine can now be imported and run with zero Flask dependencies.
 4. **Transparent Pipeline**: Traceable `CalcStep` sequence produced for every calculation.
 5. **Robust Optimization**: Enforced diversification caps and horizon-driven glide paths.
+6. **Expense Scaling Bug Fix**: Corrected route translation that previously passed `monthly_expenses * 12` into monthly engine buckets.
+7. **Accurate Gross/Net Inversion**: Replaced rough `x * 1.25` income heuristic with monotonic bisection search matching user take-home to the exact rupee.
+8. **End-to-End Debt & Emergency Alignment**: Wired credit cards, loan EMIs, and existing savings into cash flow allocation and emergency fund shortfall calculations.
+
