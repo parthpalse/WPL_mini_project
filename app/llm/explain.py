@@ -79,14 +79,14 @@ def verify_numbers(text: str, source_data: Dict[str, Any]) -> bool:
 
 def generate_deterministic_explanation(data: Dict[str, Any]) -> Dict[str, Any]:
     """Generate a reliable, structured explanation using deterministic rules."""
-    summary = data.get('summary', {})
-    surplus = summary.get('monthly_surplus', 0)
-    net_monthly = summary.get('net_monthly_income', 0)
-    expenses = summary.get('total_monthly_expenses', 0)
-    ef_monthly = summary.get('emergency_fund_monthly', 0)
-    buffer_amt = summary.get('safety_buffer_monthly', 0)
-    is_positive = summary.get('surplus_is_positive', surplus > 0)
-    deficit_plan = data.get('deficit_plan')
+    summary = data.get('summary') if isinstance(data.get('summary'), dict) else data
+    surplus = summary.get('monthly_surplus', data.get('monthly_surplus', 0))
+    net_monthly = summary.get('net_monthly_income', data.get('net_monthly_income', 0))
+    expenses = summary.get('total_monthly_expenses', data.get('total_monthly_expenses', 0))
+    ef_monthly = summary.get('emergency_fund_monthly', data.get('emergency_fund_monthly', 0))
+    buffer_amt = summary.get('safety_buffer_monthly', data.get('safety_buffer_monthly', 0))
+    is_positive = summary.get('surplus_is_positive', data.get('surplus_is_positive', surplus > 0))
+    deficit_plan = data.get('deficit_plan', summary.get('deficit_plan'))
 
     if is_positive:
         headline = f"You can safely invest ₹{surplus:,.0f} per month."

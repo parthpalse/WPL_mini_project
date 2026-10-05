@@ -268,10 +268,10 @@
         <summary>📋 Assumptions &amp; Data Sources</summary>
         <ul class="assumptions-list" style="margin-top:12px;">
             <li>Tax slabs: Finance Act 2026–27. New regime default under Section 115BAC.</li>
-            <li>Section 87A rebate: ₹25,000 for income up to ₹12,75,000 (New Regime).</li>
+            <li>Section 87A rebate: Up to ₹60,000 rebate with continuous marginal relief for taxable income up to ₹12,00,000.</li>
             <li>Surcharges: 10% (₹50L–₹1Cr), 15% (₹1Cr–₹2Cr), 25% (₹2Cr+).</li>
             <li>Health &amp; Education Cess: 4% on tax + surcharge.</li>
-            <li>Emergency fund: 6 months of monthly expenses.</li>
+            <li>Emergency fund: Dynamic ({{ s.emergency_fund_target_months | default(6) }} months based on employment stability and household size).</li>
             <li>Investment return assumptions — Conservative: 6% | Base: 10% | Optimistic: 14% p.a.</li>
             <li>Inflation assumption: 6% p.a. (RBI target band: 4±2%).</li>
             <li>Product rate source: RBI / AMFI / SEBI public data, FY2026.</li>
@@ -282,11 +282,16 @@
 <!-- Pass data to JS -->
 <script id="engine-data" type="application/json">
 {{ {
+    "gross_monthly_income": s.get('gross_monthly_income', s.net_monthly_income),
     "monthly_surplus": s.monthly_surplus,
     "net_monthly_income": s.net_monthly_income,
     "total_monthly_expenses": s.total_monthly_expenses,
+    "total_essential_expenses": s.get('total_essential_expenses', s.total_monthly_expenses),
+    "total_discretionary_expenses": s.get('total_discretionary_expenses', 0),
+    "monthly_debt_payments": s.get('monthly_debt_payments', 0),
     "tax_monthly": s.get('tax_monthly', 0),
     "emergency_fund_monthly": s.emergency_fund_monthly,
+    "emergency_fund_target": s.get('emergency_fund_target', 0),
     "safety_buffer_monthly": s.get('safety_buffer_monthly', 0),
     "surplus_is_positive": is_positive,
     "allocations": allocations
@@ -307,7 +312,11 @@ function recalcWhatIf() {
     const exp = parseFloat(document.getElementById('wi_expenses').value) || 0;
     document.getElementById('wi_income_val').textContent  = formatIN(inc);
     document.getElementById('wi_expenses_val').textContent = formatIN(exp);
-    const newSurplus = inc - exp;
+    const deltaInc = inc - BASE_INCOME;
+    const deltaExp = exp - BASE_EXPENSES;
+    // Surplus delta factors in 5% safety buffer on incremental income
+    const deltaSurplus = (deltaInc * 0.95) - deltaExp;
+    const newSurplus = Math.round(BASE_SURPLUS + deltaSurplus);
     const delta = newSurplus - BASE_SURPLUS;
     const surplusEl = document.getElementById('wi_surplus_val');
     surplusEl.textContent = formatIN(Math.max(0, newSurplus));

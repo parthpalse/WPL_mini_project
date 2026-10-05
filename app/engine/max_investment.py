@@ -245,8 +245,32 @@ def calculate_surplus(
             'top_levers': levers[:3]
         }
 
+    # Tax comparison formatted for UI
+    reg_comp = tax_res.get('regime_comparison')
+    if reg_comp:
+        tax_comparison = {
+            'recommended': tax_res.get('recommended_regime', 'new'),
+            'new': {'tax': float(reg_comp.get('new_tax', tax_res['total_tax']))},
+            'old': {'tax': float(reg_comp.get('old_tax', tax_res['total_tax']))},
+            'savings': float(reg_comp.get('tax_savings', 0.0)),
+            'recommendation_note': reg_comp.get('recommendation_note', '')
+        }
+    else:
+        tax_comparison = {
+            'recommended': tax_res.get('recommended_regime', 'new'),
+            'new': {'tax': float(tax_res['total_tax'])},
+            'old': {'tax': float(tax_res['total_tax'])},
+            'savings': 0.0,
+            'recommendation_note': 'Both regimes result in identical tax outgo.'
+        }
+
+    cc_outstanding = sum((d.outstanding for d in resolved_debts if d.debt_type == 'credit_card'), Decimal('0.00'))
+
+    calc_trace = [s.to_dict() for s in steps]
+
     return {
         'tax_result': tax_res,
+        'tax_comparison': tax_comparison,
         'expense_result': exp_res,
         'emergency_fund_result': ef_result,
         'emergency_fund_allocation': float(ef_monthly_contrib),
@@ -255,19 +279,32 @@ def calculate_surplus(
         'discretionary_what_ifs': what_if_cuts,
         'deficit_plan': deficit_plan,
         'summary': {
+            'gross_monthly_income': float(inc.gross_monthly),
+            'gross_annual_income': float(inc.gross_annual),
             'net_monthly_income': float(net_monthly_in_hand),
             'mandatory_payroll_deductions': float(mandatory_payroll_m),
+            'tax_monthly': float(round_inr(to_decimal(tax_res['total_tax']) / Decimal('12'), 2)),
+            'tax_annual': float(tax_res['total_tax']),
+            'effective_tax_rate_pct': float(tax_res.get('effective_rate_pct', 0.0)),
+            'marginal_tax_rate_pct': float(tax_res.get('marginal_rate_pct', 0.0)),
             'total_essential_expenses': float(essential_expenses_m),
             'total_discretionary_expenses': float(discretionary_expenses_m),
             'total_monthly_expenses': float(total_expenses_m),
             'monthly_debt_payments': float(total_debt_emis),
             'emergency_fund_monthly': float(ef_monthly_contrib),
+            'emergency_fund_target': float(ef_result['target']),
+            'emergency_fund_shortfall': float(ef_result['shortfall']),
+            'emergency_fund_existing': float(ef_result['existing']),
+            'emergency_fund_target_months': int(ef_result['target_months']),
+            'emergency_fund_months_to_target': int(ef_result['months_to_target']),
             'safety_buffer_monthly': float(buffer_amount),
+            'credit_card_balance': float(cc_outstanding),
             'investable_capacity_before_priorities': float(investable_capacity),
             'monthly_surplus': float(monthly_surplus),
             'monthly_surplus_for_goals': float(monthly_surplus_for_goals),
             'annual_surplus': float(round_inr(monthly_surplus * Decimal('12'), 2)),
             'surplus_is_positive': is_positive
         },
-        'calculation_trace': [s.to_dict() for s in steps]
+        'trace': calc_trace,
+        'calculation_trace': calc_trace
     }

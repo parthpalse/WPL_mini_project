@@ -20,25 +20,39 @@ function initWaterfall(data) {
     const ctx = document.getElementById('waterfallChart');
     if (!ctx) return;
 
-    const income   = data.net_monthly_income || 0;
-    const tax      = data.tax_monthly || 0;
+    const gross    = data.gross_monthly_income || data.net_monthly_income || 0;
+    const net      = data.net_monthly_income || 0;
+    const tax      = data.tax_monthly || Math.max(0, gross - net);
     const expenses = data.total_monthly_expenses || 0;
+    const debt     = data.monthly_debt_payments || 0;
     const ef       = data.emergency_fund_monthly || 0;
     const buffer   = data.safety_buffer_monthly || 0;
     const investable = data.monthly_surplus || 0;
 
-    // Build waterfall via floating bars: [start, end]
-    let cursor = income;
-    const makeDown = v => { const s = cursor; cursor -= v; return [Math.max(0,cursor), s]; };
+    let cursor = (gross > net && tax > 0) ? gross : net;
+    const startVal = cursor;
+    const startLabel = (gross > net && tax > 0) ? 'Gross Income' : 'Net In-Hand';
+    const makeDown = v => { const s = cursor; cursor -= v; return [Math.max(0, cursor), s]; };
 
     const bars = [
-        { label: 'Net Income',       value: [0, income],     color: '#0e9f6e' },
-        { label: 'Tax',              value: makeDown(tax),    color: '#e02424' },
-        { label: 'Expenses',         value: makeDown(expenses), color: '#e74c3c' },
-        { label: 'Emergency Fund',   value: makeDown(ef),     color: '#f59e0b' },
-        { label: 'Safety Buffer',    value: makeDown(buffer), color: '#8b5cf6' },
-        { label: 'Investable',       value: [0, Math.max(0,investable)], color: '#1a56db' },
-    ].filter(b => (b.value[1] - b.value[0]) > 0);
+        { label: startLabel, value: [0, startVal], color: '#0e9f6e' },
+    ];
+    if (gross > net && tax > 0) {
+        bars.push({ label: 'Tax Outgo', value: makeDown(tax), color: '#e02424' });
+    }
+    if (expenses > 0) {
+        bars.push({ label: 'Living Expenses', value: makeDown(expenses), color: '#e74c3c' });
+    }
+    if (debt > 0) {
+        bars.push({ label: 'Debt Payments', value: makeDown(debt), color: '#dc2626' });
+    }
+    if (ef > 0) {
+        bars.push({ label: 'Emergency Fund', value: makeDown(ef), color: '#f59e0b' });
+    }
+    if (buffer > 0) {
+        bars.push({ label: 'Safety Buffer', value: makeDown(buffer), color: '#8b5cf6' });
+    }
+    bars.push({ label: 'Investable', value: [0, Math.max(0, investable)], color: '#1a56db' });
 
     new Chart(ctx, {
         type: 'bar',
