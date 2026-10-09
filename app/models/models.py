@@ -25,18 +25,7 @@ class FinancialProfile(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Income
-    gross_annual_income = db.Column(db.Float, nullable=False)
-
-    # Expenses (stored as JSON string for flexibility)
-    fixed_expenses_json = db.Column(db.Text, default='[]')
-    variable_expenses_json = db.Column(db.Text, default='[]')
-
-    # Debt
-    total_monthly_debt = db.Column(db.Float, default=0.0)
-
-    # Emergency fund
-    existing_emergency_fund = db.Column(db.Float, default=0.0)
+    wizard_data_json = db.Column(db.Text, default='{}')
 
 
 class Goal(db.Model):

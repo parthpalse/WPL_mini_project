@@ -16,6 +16,8 @@ Both endpoints expect JSON body:
 import json
 import logging
 from flask import Blueprint, request, jsonify, Response, stream_with_context, session
+from flask_login import login_required
+from app import limiter
 
 from app.llm.chat import stream_chat, chat_sync, build_allocation_summary, validate_response_numbers, _build_context_block
 from app.market.finnhub_client import format_market_context
@@ -66,6 +68,8 @@ def _extract_request_data():
 
 
 @chat_bp.route('/stream', methods=['POST'])
+@login_required
+@limiter.limit("20 per minute")
 def stream():
     """SSE streaming endpoint for real-time chat responses."""
     message, history, financials, tickers, error = _extract_request_data()
@@ -126,6 +130,8 @@ def stream():
 
 
 @chat_bp.route('/sync', methods=['POST'])
+@login_required
+@limiter.limit("20 per minute")
 def sync():
     """Non-streaming chat endpoint — returns full JSON response."""
     message, history, financials, tickers, error = _extract_request_data()

@@ -15,6 +15,7 @@ Endpoints:
 import uuid
 from decimal import Decimal
 from flask import Blueprint, jsonify, request, session
+from app.market.finnhub_client import get_quote
 
 from app.engine.max_investment import calculate_surplus
 from app.engine.money import to_decimal, round_inr, format_inr
@@ -191,12 +192,33 @@ def get_projection():
 
 @api_bp.route('/market', methods=['GET'])
 def get_market():
-    market_data = [
-        {"symbol": "NIFTY50", "name": "Nifty 50", "value": 24964.25, "changePct": 0.52, "status": "active"},
-        {"symbol": "SENSEX", "name": "BSE Sensex", "value": 81611.40, "changePct": 0.44, "status": "active"},
-        {"symbol": "GOLD", "name": "Gold 10g (24K)", "value": 76850.00, "changePct": -0.15, "status": "active"},
-        {"symbol": "USDINR", "name": "USD / INR", "value": 83.98, "changePct": 0.02, "status": "active"}
+    tickers = [
+        {"symbol": "RELIANCE.NS", "name": "Reliance"},
+        {"symbol": "TCS.NS", "name": "TCS"},
+        {"symbol": "INFY.NS", "name": "Infosys"},
+        {"symbol": "HDFCBANK.NS", "name": "HDFC Bank"}
     ]
+    
+    market_data = []
+    for t in tickers:
+        q = get_quote(t["symbol"])
+        if q:
+            market_data.append({
+                "symbol": t["symbol"],
+                "name": t["name"],
+                "value": q.get("current", 0),
+                "changePct": q.get("change_pct", 0),
+                "status": "active"
+            })
+        else:
+            market_data.append({
+                "symbol": t["symbol"],
+                "name": t["name"],
+                "value": 0,
+                "changePct": 0,
+                "status": "error"
+            })
+            
     return jsonify(market_data)
 
 

@@ -21,6 +21,10 @@ services:
         value: http://localhost:11434/api/generate
       - key: OLLAMA_MODEL
         value: llama3.2
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
 
 databases:
   - name: bankease-db

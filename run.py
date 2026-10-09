@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Fix Render's DATABASE_URL prefix (postgres:// → postgresql://)
 db_url = os.environ.get('DATABASE_URL', '')

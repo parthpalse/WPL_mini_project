@@ -6,17 +6,21 @@ try:
     from flask_login import LoginManager
     from flask_wtf.csrf import CSRFProtect
     from flask_migrate import Migrate
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
 
     db = SQLAlchemy()
     login_manager = LoginManager()
     csrf = CSRFProtect()
     migrate = Migrate()
+    limiter = Limiter(key_func=get_remote_address)
 except ImportError:
     Flask = None
     db = None
     login_manager = None
     csrf = None
     migrate = None
+    limiter = None
 
 
 def create_app(config_override=None):
@@ -35,6 +39,12 @@ def create_app(config_override=None):
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['CONFIG_DIR'] = os.path.join(basedir, 'config')
 
+    # Session Security
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    if os.environ.get('FLASK_ENV') == 'production':
+        app.config['SESSION_COOKIE_SECURE'] = True
+
     if config_override:
         app.config.update(config_override)
 
@@ -47,11 +57,15 @@ def create_app(config_override=None):
     migrate.init_app(app, db)
     csrf.init_app(app)
     login_manager.init_app(app)
-    login_manager.login_view = 'profile.index'
+    login_manager.login_view = 'auth.login'
+    
+    if limiter:
+        limiter.init_app(app)
 
+    from app.models.models import User
     @login_manager.user_loader
     def load_user(user_id):
-        return None
+        return User.query.get(int(user_id))
 
     # Secure Headers
     @app.after_request
@@ -64,6 +78,17 @@ def create_app(config_override=None):
     # Setup Logging
     from app.logger import setup_logging
     setup_logging(app)
+    
+    # Error handlers
+    from flask import render_template
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        app.logger.error(f'Server Error: {e}')
+        return render_template('errors/500.html'), 500
 
     # ── Jinja2 Filters & Globals ──────────────────────────────────────────────
     def indian_currency(value):
@@ -89,6 +114,8 @@ def create_app(config_override=None):
     from app.routes.dashboard import dashboard_bp
     from app.routes.wizard import wizard_bp
     from app.routes.chat import chat_bp
+    from app.routes.auth import auth_bp
+    
     app.register_blueprint(spa_bp)
     app.register_blueprint(api_bp)
     csrf.exempt(api_bp)
@@ -97,6 +124,7 @@ def create_app(config_override=None):
     app.register_blueprint(plan_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(wizard_bp)
+    app.register_blueprint(auth_bp)
     app.register_blueprint(chat_bp)
     csrf.exempt(chat_bp)  # SSE streaming + CSRF form tokens are unreliable
 

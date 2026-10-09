@@ -1,6 +1,7 @@
 import os
 from decimal import Decimal
 from flask import Blueprint, render_template, request, session, redirect, url_for, current_app, jsonify
+from flask_login import login_required
 from app.engine.max_investment import calculate_surplus
 from app.engine.optimizer import optimize_allocation
 from app.engine.tax import calculate_tax_regime
@@ -44,6 +45,7 @@ def _estimate_gross_from_net(target_net_annual: float, tax_config: str) -> float
 
 
 @dashboard_bp.route('/', methods=['GET'])
+@login_required
 def index():
     wizard_data = session.get('wizard_data') or session.get('tier1') or {}
     if not wizard_data:

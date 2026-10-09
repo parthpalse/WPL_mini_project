@@ -1,4 +1,8 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash
+from flask_login import login_required, current_user
+import json
+from app import db
+from app.models.models import FinancialProfile
 
 wizard_bp = Blueprint('wizard', __name__, url_prefix='/wizard')
 
@@ -15,11 +19,13 @@ STEP_FIELDS = {
 
 
 @wizard_bp.route('/', methods=['GET'])
+@login_required
 def index():
     return render_template('wizard/index.html')
 
 
 @wizard_bp.route('/step/<int:step_id>', methods=['GET', 'POST'])
+@login_required
 def step(step_id):
     if step_id < 1 or step_id > 5:
         return redirect(url_for('wizard.index'))
@@ -42,6 +48,12 @@ def step(step_id):
         if step_id < 5:
             return redirect(url_for('wizard.step', step_id=step_id + 1))
         else:
+            profile = FinancialProfile(
+                user_id=current_user.id,
+                wizard_data_json=json.dumps(wizard_data)
+            )
+            db.session.add(profile)
+            db.session.commit()
             return redirect(url_for('dashboard.index'))
 
     return render_template(
@@ -52,6 +64,7 @@ def step(step_id):
 
 
 @wizard_bp.route('/quick', methods=['GET', 'POST'])
+@login_required
 def quick():
     if request.method == 'POST':
         form = {k: v for k, v in request.form.items() if k != 'csrf_token'}
@@ -74,12 +87,21 @@ def quick():
             'quick_mode': True,
         }
         session.modified = True
+
+        profile = FinancialProfile(
+            user_id=current_user.id,
+            wizard_data_json=json.dumps(session['wizard_data'])
+        )
+        db.session.add(profile)
+        db.session.commit()
+
         return redirect(url_for('dashboard.index'))
 
     return render_template('wizard/quick.html', data=session.get('wizard_data', {}))
 
 
 @wizard_bp.route('/reset', methods=['POST'])
+@login_required
 def reset():
     session.pop('wizard_data', None)
     flash('Your plan data has been cleared.', 'success')
