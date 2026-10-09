@@ -1,25 +1,18 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 
-profile_bp = Blueprint('profile', __name__, url_prefix='/profile')
+profile_bp = Blueprint('profile', __name__, url_prefix='/legacy_profile')
+root_bp = Blueprint('root', __name__)
 
-
-# ── Root redirect ─────────────────────────────────────────────────────────────
-from flask import Blueprint as _RootBP, jsonify
-root_bp = _RootBP('root', __name__)
-
-@root_bp.route('/')
-def home():
-    return redirect(url_for('wizard.index'))
 
 @root_bp.route('/health')
 def health():
     return jsonify({"status": "healthy", "service": "bankease"}), 200
 
 
-
 @profile_bp.route('/', methods=['GET'])
 def index():
     return render_template('onboarding/tier1.html')
+
 
 @profile_bp.route('/tier1_submit', methods=['POST'])
 def tier1_submit():

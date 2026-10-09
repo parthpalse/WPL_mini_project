@@ -5,9 +5,11 @@ and macro assumptions are structurally sound, bounded, sourced, and dated.
 The application refuses to start if any configuration is invalid.
 """
 
+from __future__ import annotations
+
 import os
 import json
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Dict, Optional, Any, Union, Type
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 

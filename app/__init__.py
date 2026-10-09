@@ -82,11 +82,16 @@ def create_app(config_override=None):
     app.jinja_env.globals['abs'] = abs
 
     # Register blueprints
+    from app.routes.spa import spa_bp
+    from app.routes.api import api_bp
     from app.routes.profile import profile_bp, root_bp
     from app.routes.plan import plan_bp
     from app.routes.dashboard import dashboard_bp
     from app.routes.wizard import wizard_bp
     from app.routes.chat import chat_bp
+    app.register_blueprint(spa_bp)
+    app.register_blueprint(api_bp)
+    csrf.exempt(api_bp)
     app.register_blueprint(root_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(plan_bp)

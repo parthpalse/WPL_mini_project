@@ -14,6 +14,9 @@ Anti-hallucination:
   • Post-generation guardrail cross-checks numeric claims.
 """
 
+from __future__ import annotations
+
+
 import os
 import re
 import json

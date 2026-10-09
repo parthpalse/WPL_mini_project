@@ -8,6 +8,9 @@ Keeps Finnhub responses in memory for a configurable duration so that:
 Thread-safe via a simple lock.
 """
 
+from __future__ import annotations
+
+
 import time
 import threading
 from typing import Any, Optional
