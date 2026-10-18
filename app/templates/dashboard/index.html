@@ -3,7 +3,7 @@
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-.headline-card { border-left: 5px solid var(--success); }
+.headline-card { border-left: 5px solid var(--success); position: relative; }
 .headline-card.deficit { border-left-color: var(--danger); }
 .headline-amt { font-size: 2.2rem; font-weight: 800; }
 .surplus .headline-amt { color: var(--success); }
@@ -17,13 +17,110 @@
 .alloc-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
 .alloc-table tr:last-child td { border-bottom: none; }
 .amount-cell { font-weight: 700; color: var(--primary); }
-@media (max-width: 768px) { .tax-compare { grid-template-columns: 1fr; } }
+
+/* Explain Button */
+.btn-explain {
+    background: #eef2ff;
+    color: var(--primary);
+    border: 1px solid #c7d2fe;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.btn-explain:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+/* Modals */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(17, 24, 39, 0.6);
+    backdrop-filter: blur(2px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000; padding: 16px;
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+    background: #fff; border-radius: 12px; max-width: 650px; width: 100%;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.04);
+    overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;
+}
+.modal-header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    background: #f9fafb;
+}
+.modal-header h3 { font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--text); }
+.modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 20px; overflow-y: auto; font-size: 0.92rem; }
+.modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); background: #f9fafb; display: flex; justify-content: flex-end; gap: 10px; }
+
+/* Compare Table */
+.compare-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 12px; }
+.compare-table th { text-align: left; padding: 10px; background: #f3f4f6; font-weight: 600; color: var(--text-muted); border-bottom: 2px solid var(--border); }
+.compare-table td { padding: 10px; border-bottom: 1px solid var(--border); }
+.delta-tag { padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+.delta-pos { background: #dcfce7; color: #166534; }
+.delta-neg { background: #fee2e2; color: #991b1b; }
+.delta-zero { background: #f3f4f6; color: var(--text-muted); }
+
+/* Print Styles */
+.print-header { display: none; }
+@media print {
+    body { background: #fff !important; color: #000 !important; font-size: 11pt; }
+    .site-nav, .no-print, .dashboard-actions, #proj-toggle, #chat-widget-container, #chat-container, .whatif-row input, .btn-explain, .modal-overlay { display: none !important; }
+    .card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; margin-bottom: 16px !important; }
+    details { display: block !important; }
+    details > * { display: block !important; }
+    details summary { display: none !important; }
+    .print-header { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #111; padding-bottom: 8px; }
+}
+
+@media (max-width: 768px) {
+    .tax-compare { grid-template-columns: 1fr; }
+    .dashboard-actions { flex-direction: column; align-items: stretch; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
 {% set s = surplus_data.summary %}
 {% set is_positive = s.monthly_surplus > 0 %}
+
+<!-- Print-Only Header -->
+<div class="print-header">
+    <h1 style="font-size:1.6rem; margin-bottom:4px; color:var(--primary);">💰 BankEase Financial Plan</h1>
+    <p style="font-size:0.85rem; color:#666;">Generated on: <span id="print-date"></span> | Statutory FY 2026–27 Snapshot</p>
+</div>
+
+<!-- Action Bar (Top) -->
+<div class="dashboard-actions no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button type="button" class="btn btn-secondary" onclick="openSaveScenarioModal()" title="Save plan parameters to compare later">
+            💾 Save Scenario
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="openCompareModal()" title="Compare with another saved plan">
+            ⚖️ Compare Scenarios
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="window.print()" title="Export or print this plan as PDF">
+            📄 Export / Print Plan
+        </button>
+    </div>
+    <div>
+        <a href="{{ url_for('wizard.step', step_id=1) }}" class="btn btn-secondary" style="font-size:0.85rem;">
+            ✏️ Edit Details
+        </a>
+    </div>
+</div>
 
 <!-- ① Headline Card -->
 <div class="card headline-card {{ 'surplus' if is_positive else 'deficit' }}" style="margin-bottom:20px;">
@@ -32,7 +129,12 @@
             <div style="font-size:0.85rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;">
                 {{ '✅ Monthly Investable Surplus' if is_positive else '⚠️ Monthly Shortfall' }}
             </div>
-            <div class="headline-amt">{{ s.monthly_surplus | abs | indian_currency }}</div>
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <div class="headline-amt">{{ s.monthly_surplus | abs | indian_currency }}</div>
+                <button type="button" class="btn-explain no-print" onclick="explainTraceStep('Monthly Investable Surplus', '{{ s.monthly_surplus | abs | indian_currency }}', 'Net Take-Home - Essential Expenses - Debts - Sinking Fund - 5% Safety Reserve', 'The mathematically verified surplus you can deploy without endangering monthly liquidity.')" title="Explain how this number was calculated">
+                    💡 Explain this number
+                </button>
+            </div>
             <p style="font-size:0.9rem; color:var(--text-muted); margin-top:8px;">
                 {% if is_positive %}
                     After tax, expenses, and an emergency fund reserve — this is what you can safely invest each month.
@@ -246,7 +348,7 @@
     <details class="trace-details">
         <summary>Show calculation trace ({{ surplus_data.trace | length }} steps)</summary>
         <table class="trace-table">
-            <thead><tr><th>#</th><th>Step</th><th>Result</th><th>Formula</th></tr></thead>
+            <thead><tr><th>#</th><th>Step</th><th>Result</th><th>Formula</th><th class="no-print">Action</th></tr></thead>
             <tbody>
             {% for step in surplus_data.trace %}
             <tr>
@@ -254,6 +356,11 @@
                 <td><strong>{{ step.label }}</strong>{% if step.get('note') %}<br><span style="color:var(--text-muted); font-size:0.8rem;">{{ step.note }}</span>{% endif %}</td>
                 <td style="font-weight:600;">{{ step.get('formatted_result', step.get('result','—')) }}</td>
                 <td style="font-family:monospace; font-size:0.8rem; color:var(--text-muted);">{{ step.get('formula','') }}</td>
+                <td class="no-print">
+                    <button type="button" class="btn-explain" onclick="explainTraceStep('{{ step.label | escape }}', '{{ step.get('formatted_result', step.get('result','—')) | escape }}', '{{ step.get('formula','') | escape }}', '{{ step.get('note','') | escape }}')" title="Explain this calculation step">
+                        💡 Explain
+                    </button>
+                </td>
             </tr>
             {% endfor %}
             </tbody>
@@ -277,6 +384,92 @@
             <li>Product rate source: RBI / AMFI / SEBI public data, FY2026.</li>
         </ul>
     </details>
+</div>
+
+<!-- Explain Modal -->
+<div class="modal-overlay" id="explainModal" role="dialog" aria-modal="true" aria-labelledby="explainModalTitle">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="explainModalTitle">💡 Calculation Explanation</h3>
+            <button type="button" class="modal-close" onclick="closeExplainModal()" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="explainModalLoading" style="text-align:center; padding:24px 0; color:var(--text-muted);">
+                <span class="spinner"></span> Analyzing step details...
+            </div>
+            <div id="explainModalContent" style="display:none;">
+                <div style="font-size:0.85rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600;" id="explainStepLabel"></div>
+                <div style="font-size:1.6rem; font-weight:800; color:var(--primary); margin:6px 0;" id="explainStepResult"></div>
+                <div style="background:#f3f4f6; border-radius:6px; padding:10px; font-family:monospace; font-size:0.82rem; color:#374151; margin-bottom:14px;" id="explainStepFormula"></div>
+                <div style="line-height:1.6; font-size:0.95rem; color:#1f2937;" id="explainStepText"></div>
+                <div style="margin-top:14px;" id="explainStepBadge"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeExplainModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Save Scenario Modal -->
+<div class="modal-overlay" id="saveScenarioModal" role="dialog" aria-modal="true" aria-labelledby="saveScenarioTitle">
+    <div class="modal-box" style="max-width:460px;">
+        <div class="modal-header">
+            <h3 id="saveScenarioTitle">💾 Save Financial Scenario</h3>
+            <button type="button" class="modal-close" onclick="closeSaveScenarioModal()" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:14px;">
+                Save your current inputs so you can compare multiple financial plans side-by-side.
+            </p>
+            <div class="form-group">
+                <label for="scenarioNameInput">Scenario Name</label>
+                <input type="text" id="scenarioNameInput" value="Scenario - ₹{{ s.monthly_surplus | abs | indian_currency }}" maxlength="40">
+            </div>
+            <div id="saveScenarioStatus" style="font-size:0.85rem; margin-top:6px;"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeSaveScenarioModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="confirmSaveScenario()">Save Plan</button>
+        </div>
+    </div>
+</div>
+
+<!-- Compare Scenarios Modal -->
+<div class="modal-overlay" id="compareModal" role="dialog" aria-modal="true" aria-labelledby="compareTitle">
+    <div class="modal-box" style="max-width:720px;">
+        <div class="modal-header">
+            <h3 id="compareTitle">⚖️ Compare Scenarios Side-by-Side</h3>
+            <button type="button" class="modal-close" onclick="closeCompareModal()" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+                <span style="font-size:0.88rem; font-weight:600; color:var(--text-muted);">Compare Current Plan against:</span>
+                <select id="compareSelect" onchange="runComparison(this.value)" style="max-width:280px; padding:6px 10px; font-size:0.88rem;">
+                    <option value="">Optimized Expenses (-20%)</option>
+                </select>
+            </div>
+            <div id="compareLoading" style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                <span class="spinner"></span> Calculating scenario comparison...
+            </div>
+            <div id="compareContent" style="display:none;">
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Financial Metric</th>
+                            <th id="compHeaderA">Current Plan</th>
+                            <th id="compHeaderB">Comparison Plan</th>
+                            <th>Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="compareTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeCompareModal()">Close</button>
+        </div>
+    </div>
 </div>
 
 <!-- Pass data to JS -->

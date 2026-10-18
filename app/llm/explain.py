@@ -28,12 +28,14 @@ def _collect_all_numbers(data: Any, result: Optional[Set[float]] = None) -> Set[
         result = set()
     if isinstance(data, (int, float)):
         result.add(round(float(data), 2))
+        result.add(round(abs(float(data)), 2))
     elif isinstance(data, str):
         # Extract plain numbers from strings
         clean = data.replace(',', '').replace('₹', '').replace('%', '').strip()
         try:
             val = float(clean)
             result.add(round(val, 2))
+            result.add(round(abs(val), 2))
         except ValueError:
             pass
     elif isinstance(data, dict):
@@ -108,11 +110,12 @@ def generate_deterministic_explanation(data: Dict[str, Any]) -> Dict[str, Any]:
             f"Your current outflows (₹{expenses:,.0f} in expenses plus commitments) exceed your net in-hand income "
             f"of ₹{net_monthly:,.0f}. Building wealth requires establishing a positive monthly surplus first."
         )
-        actions = deficit_plan.get('top_levers', [
-            "Review and reduce non-essential discretionary expenses.",
-            "Restructure high-cost debt to lower monthly outflows.",
-            "Explore opportunities to increase monthly take-home income."
-        ]) if deficit_plan else ["Trim discretionary spending to restore balance."]
+        default_deficit_actions = [
+            "Review and reduce non-essential discretionary expenses to close the monthly gap.",
+            "Restructure or refinance high-interest debts to lower monthly EMI burden.",
+            "Pause fresh market investments until emergency reserves and cash flow turn positive."
+        ]
+        actions = deficit_plan.get('top_levers', default_deficit_actions) if deficit_plan else default_deficit_actions
         watch_outs = "Avoid taking on additional debt or investing in volatile products while in a deficit."
 
     return {
@@ -192,8 +195,45 @@ def explain_step(step_data: Dict[str, Any]) -> Dict[str, Any]:
     result = step_data.get('formatted_result', step_data.get('result', ''))
     note = step_data.get('note', '')
 
-    explanation = f"{label}: {result}. Calculated as '{formula}'. {note}"
+    base_explanation = f"{label}: {result}. Calculated as {formula}." if formula else f"{label}: {result}."
+    if note:
+        base_explanation += f" {note}"
+
+    # Try Ollama for a short, natural 1-2 sentence explanation
+    ai_explanation = None
+    try:
+        prompt = f"""Explain this single financial calculation step in 1-2 friendly, plain-English sentences for an Indian user.
+Rules:
+1. ONLY mention the number '{result}'. Do NOT introduce, compute, or guess any other numbers.
+2. Keep it simple and helpful.
+
+Step: {label}
+Result: {result}
+Formula: {formula}
+Context: {note}
+"""
+        payload = {
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0.1, "seed": 42}
+        }
+        resp = requests.post(OLLAMA_URL, json=payload, timeout=5)
+        if resp.status_code == 200:
+            text = resp.json().get('response', '').strip()
+            # Verify numbers in text
+            if verify_numbers(text, step_data):
+                ai_explanation = text
+    except Exception:
+        pass
+
     return {
         "step_id": step_data.get('step_id'),
-        "explanation": explanation
+        "label": label,
+        "result": result,
+        "formula": formula,
+        "note": note,
+        "source": "ai" if ai_explanation else "template",
+        "explanation": ai_explanation or base_explanation
     }
+

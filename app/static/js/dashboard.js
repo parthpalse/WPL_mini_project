@@ -233,3 +233,176 @@ function getCsrfToken() {
     if (field) return field.value;
     return '';
 }
+
+// ─── Explain Single Number / Calculation Step ───────────────────────────────
+function explainTraceStep(label, result, formula, note) {
+    const modal = document.getElementById('explainModal');
+    const loading = document.getElementById('explainModalLoading');
+    const content = document.getElementById('explainModalContent');
+    if (!modal) return;
+
+    modal.classList.add('active');
+    loading.style.display = 'block';
+    content.style.display = 'none';
+
+    document.getElementById('explainStepLabel').textContent = label;
+    document.getElementById('explainStepResult').textContent = result;
+    document.getElementById('explainStepFormula').textContent = formula ? `Formula: ${formula}` : '';
+    document.getElementById('explainStepText').textContent = note || '';
+
+    fetch('/dashboard/explain_step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ label, formatted_result: result, formula, note })
+    })
+    .then(r => r.json())
+    .then(resp => {
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        document.getElementById('explainStepText').textContent = resp.explanation || note || `${label} calculated as ${result}.`;
+        const badgeEl = document.getElementById('explainStepBadge');
+        if (resp.source === 'ai') {
+            badgeEl.innerHTML = '<span class="badge badge-blue">🤖 Verified AI Explanation</span>';
+        } else {
+            badgeEl.innerHTML = '<span class="badge badge-yellow">📋 Deterministic Engine Rule</span>';
+        }
+    })
+    .catch(() => {
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        document.getElementById('explainStepText').textContent = note || `${label}: ${result}. Calculated with formula '${formula}'.`;
+        document.getElementById('explainStepBadge').innerHTML = '<span class="badge badge-yellow">📋 Engine Trace</span>';
+    });
+}
+
+function closeExplainModal() {
+    const modal = document.getElementById('explainModal');
+    if (modal) modal.classList.remove('active');
+}
+
+// ─── Save Scenario Modal ───────────────────────────────────────────────────
+function openSaveScenarioModal() {
+    const modal = document.getElementById('saveScenarioModal');
+    const status = document.getElementById('saveScenarioStatus');
+    if (!modal) return;
+    if (status) status.textContent = '';
+    modal.classList.add('active');
+}
+
+function closeSaveScenarioModal() {
+    const modal = document.getElementById('saveScenarioModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function confirmSaveScenario() {
+    const input = document.getElementById('scenarioNameInput');
+    const status = document.getElementById('saveScenarioStatus');
+    const name = input ? input.value.trim() : '';
+    if (!name) return;
+
+    fetch('/dashboard/save_scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ name })
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp.success) {
+            status.innerHTML = `<span style="color:var(--success);">✅ Saved as "${resp.name}" (${resp.count} saved plans)</span>`;
+            setTimeout(() => {
+                closeSaveScenarioModal();
+            }, 1200);
+        } else {
+            status.innerHTML = `<span style="color:var(--danger);">${resp.error || 'Failed to save.'}</span>`;
+        }
+    })
+    .catch(() => {
+        status.innerHTML = `<span style="color:var(--danger);">Network error while saving scenario.</span>`;
+    });
+}
+
+// ─── Compare Scenarios Modal ───────────────────────────────────────────────
+function openCompareModal() {
+    const modal = document.getElementById('compareModal');
+    if (!modal) return;
+    modal.classList.add('active');
+
+    // Populate scenario dropdown
+    const select = document.getElementById('compareSelect');
+    fetch('/dashboard/list_scenarios')
+        .then(r => r.json())
+        .then(resp => {
+            select.innerHTML = '<option value="">Optimized Expenses (-20%)</option>';
+            (resp.scenarios || []).forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+            runComparison(select.value);
+        })
+        .catch(() => {
+            runComparison('');
+        });
+}
+
+function closeCompareModal() {
+    const modal = document.getElementById('compareModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function runComparison(targetName) {
+    const loading = document.getElementById('compareLoading');
+    const content = document.getElementById('compareContent');
+    const tbody = document.getElementById('compareTableBody');
+    const headerB = document.getElementById('compHeaderB');
+
+    loading.style.display = 'block';
+    content.style.display = 'none';
+
+    fetch('/dashboard/compare_api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ target_scenario_name: targetName })
+    })
+    .then(r => r.json())
+    .then(resp => {
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        headerB.textContent = resp.name_b || 'Comparison Plan';
+
+        tbody.innerHTML = '';
+        (resp.items || []).forEach(item => {
+            const tr = document.createElement('tr');
+            let deltaHtml = '';
+            if (item.delta > 0) {
+                deltaHtml = `<span class="delta-tag delta-pos">+${formatIN(item.delta)}</span>`;
+            } else if (item.delta < 0) {
+                deltaHtml = `<span class="delta-tag delta-neg">-${formatIN(Math.abs(item.delta))}</span>`;
+            } else {
+                deltaHtml = `<span class="delta-tag delta-zero">—</span>`;
+            }
+
+            tr.innerHTML = `
+                <td><strong>${item.label}</strong></td>
+                <td>${formatIN(item.val_a)}</td>
+                <td style="font-weight:600;">${formatIN(item.val_b)}</td>
+                <td>${deltaHtml}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    })
+    .catch(() => {
+        loading.innerHTML = '<p style="color:var(--danger);">Failed to calculate scenario comparison.</p>';
+    });
+}
+
+// Set print date
+document.addEventListener('DOMContentLoaded', function () {
+    const printDate = document.getElementById('print-date');
+    if (printDate) {
+        const now = new Date();
+        printDate.textContent = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+});
+

@@ -19,6 +19,7 @@ from app.engine.tax import calculate_tax_regime
 def app():
     app = create_app({
         'TESTING': True,
+        'LOGIN_DISABLED': True,
         'WTF_CSRF_ENABLED': False,
         'SECRET_KEY': 'test-secret',
         'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:'
@@ -134,3 +135,58 @@ class TestDashboardRouteCalculations:
         # Definitely NOT negative!
         assert data['surplus'] > 20000
         assert data['surplus'] < 50000
+
+    def test_save_and_list_scenarios(self, client):
+        """Test scenario saving and listing endpoints."""
+        with client.session_transaction() as sess:
+            sess['wizard_data'] = {'income_amount': '60000', 'exp_rent': '15000'}
+
+        # Save scenario
+        res = client.post('/dashboard/save_scenario', json={'name': 'My Baseline'})
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data['success'] is True
+        assert data['name'] == 'My Baseline'
+
+        # List scenarios
+        res_list = client.get('/dashboard/list_scenarios')
+        assert res_list.status_code == 200
+        list_data = res_list.get_json()
+        assert 'My Baseline' in list_data['scenarios']
+
+    def test_compare_api(self, client):
+        """Test comparing current scenario against another plan."""
+        with client.session_transaction() as sess:
+            sess['wizard_data'] = {
+                'income_amount': '80000',
+                'exp_rent': '20000',
+                'exp_food': '10000'
+            }
+            sess['saved_scenarios'] = {
+                'Lower Rent Plan': {
+                    'income_amount': '80000',
+                    'exp_rent': '12000',
+                    'exp_food': '10000'
+                }
+            }
+
+        res = client.post('/dashboard/compare_api', json={'target_scenario_name': 'Lower Rent Plan'})
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data['name_a'] == 'Current Plan'
+        assert data['name_b'] == 'Lower Rent Plan'
+        assert len(data['items']) >= 5
+
+    def test_explain_step_route(self, client):
+        """Test explaining a single calculation trace step."""
+        res = client.post('/dashboard/explain_step', json={
+            'label': 'Monthly Living Expenses',
+            'formatted_result': '₹30,000',
+            'formula': 'Rent + Groceries + Utilities',
+            'note': 'Essential monthly living costs'
+        })
+        assert res.status_code == 200
+        data = res.get_json()
+        assert 'explanation' in data
+        assert '30,000' in data['explanation']
+

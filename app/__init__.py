@@ -32,10 +32,13 @@ def create_app(config_override=None):
     # Default config
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-prod')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    db_url = os.environ.get(
         'DATABASE_URL',
         f'sqlite:///{os.path.join(basedir, "bankease.db")}'
     )
+    if db_url and db_url.startswith('postgres://'):
+        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['CONFIG_DIR'] = os.path.join(basedir, 'config')
 

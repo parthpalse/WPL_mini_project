@@ -163,11 +163,18 @@
 </head>
 <body>
 <nav class="site-nav" aria-label="Main navigation">
-    <span class="brand">💰 BankEase</span>
-    <div class="nav-links">
+    <a href="{{ url_for('wizard.index') }}" class="brand" style="text-decoration:none;">💰 BankEase</a>
+    <div class="nav-links" style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
         <a href="{{ url_for('wizard.index') }}">Plan</a>
         <a href="{{ url_for('wizard.quick') }}">Quick Estimate</a>
         <a href="{{ url_for('dashboard.index') }}">Dashboard</a>
+        {% if current_user.is_authenticated %}
+            <span style="font-size:0.85rem; color:var(--text-muted); margin-left:8px;">👤 {{ current_user.email }}</span>
+            <a href="{{ url_for('auth.logout') }}" style="font-size:0.85rem; color:var(--danger);">Logout</a>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}" style="font-size:0.85rem;">Login</a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary" style="padding:4px 14px; font-size:0.85rem; color:#fff; text-decoration:none;">Sign Up</a>
+        {% endif %}
     </div>
 </nav>
 
