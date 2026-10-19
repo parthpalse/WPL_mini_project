@@ -29,9 +29,12 @@ def main():
         print(f"[INFO] Current DATABASE_URL is pointing to local SQLite: {db_url}")
         print("To switch to Supabase, update DATABASE_URL in .env to your Supabase PostgreSQL URI.")
 
-    # Fix postgres:// prefix if present
+    # Fix postgres:// and postgresql:// prefixes for psycopg2
     if db_url.startswith('postgres://'):
-        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+        db_url = db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
+        os.environ['DATABASE_URL'] = db_url
+    elif db_url.startswith('postgresql://') and not db_url.startswith('postgresql+'):
+        db_url = db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
         os.environ['DATABASE_URL'] = db_url
 
     print("[INFO] Connecting to database and creating tables...")
