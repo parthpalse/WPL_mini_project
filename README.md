@@ -34,7 +34,7 @@ Two AI layers work together:
 | Layer | Choice |
 |---|---|
 | Backend | Python + Flask (App Factory & Blueprints) |
-| Database | SQLite (local dev) / **Supabase PostgreSQL** (production) |
+| Database | **MongoDB** (local `mongod` or Docker for dev / **MongoDB Atlas** in production) via `pymongo` |
 | Optimization | scipy / PuLP |
 | Charts | Chart.js |
 | Market Data | Finnhub REST API (free tier, 60 calls/min) |
@@ -47,18 +47,18 @@ Two AI layers work together:
 
 ```bash
 # 1. Install dependencies
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # 2. Copy environment file
 cp .env.example .env
 
-# 3. Run the database setup script (creates all tables)
-python scripts/setup_supabase.py
+# 3. Point MONGODB_URI in .env at a MongoDB server (local or Atlas), then verify
+python scripts/setup_mongodb.py
 
 # 4. Start the application
 python run.py
 
-# 5. Run tests (70 passing tests)
+# 5. Run tests (uses in-memory mongomock — no server needed)
 python -m pytest
 ```
 
@@ -66,22 +66,21 @@ Visit **`http://localhost:5000`** in your browser.
 
 ---
 
-## 🗄️ Supabase Database Setup
+## 🗄️ MongoDB Atlas Setup
 
-BankEase is pre-configured to connect directly to **Supabase** via PostgreSQL (`psycopg2-binary`):
+BankEase stores users and saved wizard profiles in MongoDB (collections `users` and `financial_profiles`, created automatically on first write):
 
-1. Go to **[supabase.com](https://supabase.com)** and open your project dashboard.
-2. Navigate to **Project Settings** (gear icon) → **Database**.
-3. Under **Connection string**, select **URI** (or Connection Pooler on port `6543`).
-4. In your `.env` file (or host environment variables), set:
+1. Create a free **M0** cluster at **[cloud.mongodb.com](https://cloud.mongodb.com)**.
+2. **Database Access** → add a database user with a password.
+3. **Network Access** → add `0.0.0.0/0` (Render's outbound IPs are not fixed on the free plan).
+4. **Connect** → **Drivers** → **Python** → copy the `mongodb+srv://` string, and add `/bankease` before the `?`:
    ```env
-   DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+   MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/bankease?retryWrites=true&w=majority
    ```
-5. Run the verification script:
+5. Put it in `.env` and run the verification script (pings the server and creates the indexes):
    ```bash
-   python scripts/setup_supabase.py
+   python scripts/setup_mongodb.py
    ```
-   This will test your connection and create all tables (`users`, `financial_profiles`, `goals`, `plan_results`).
 
 ---
 
@@ -97,7 +96,7 @@ BankEase is pre-configured for **Render** via [`render.yaml`](render.yaml) and [
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 60 "run:app"`
 5. In **Environment Variables**, set:
-   - `DATABASE_URL`: Your Supabase connection string.
+   - `MONGODB_URI`: Your MongoDB Atlas connection string.
    - `SECRET_KEY`: A secure random secret string.
    - `ANTHROPIC_API_KEY`: *(Optional)* For the live chat assistant.
    - `FINNHUB_API_KEY`: *(Optional)* For live market quotes.
@@ -107,7 +106,7 @@ BankEase is pre-configured for **Render** via [`render.yaml`](render.yaml) and [
 
 ## Test Suite
 
-The test suite contains **70 unit and integration tests** covering:
+The test suite contains **72 unit and integration tests** covering:
 - Dual-regime Indian Tax calculations (FY 2026-27) with Section 87A marginal relief.
 - 10 hand-calculated Golden Scenarios across all income bands (₹3L to ₹1Cr+).
 - Property-based tests via Hypothesis.

@@ -2,7 +2,6 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models.models import User
-from app import db
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -16,7 +15,7 @@ def login():
         password = request.form.get('password')
         remember = True if request.form.get('remember') else False
 
-        user = User.query.filter_by(email=email).first()
+        user = User.get_by_email(email)
 
         if not user or not check_password_hash(user.password_hash, password):
             flash('Please check your login details and try again.', 'error')
@@ -37,7 +36,7 @@ def register():
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        user = User.query.filter_by(email=email).first()
+        user = User.get_by_email(email)
 
         if user:
             flash('Email address already exists', 'error')
@@ -47,10 +46,10 @@ def register():
             flash('Passwords do not match', 'error')
             return redirect(url_for('auth.register'))
 
-        new_user = User(email=email, password_hash=generate_password_hash(password, method='pbkdf2:sha256'))
-
-        db.session.add(new_user)
-        db.session.commit()
+        new_user = User.create(email, generate_password_hash(password, method='pbkdf2:sha256'))
+        if new_user is None:  # lost a race with a concurrent signup for the same email
+            flash('Email address already exists', 'error')
+            return redirect(url_for('auth.register'))
 
         login_user(new_user)
         return redirect(url_for('dashboard.index'))

@@ -3,11 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Fix Render's DATABASE_URL prefix (postgres:// → postgresql://)
-db_url = os.environ.get('DATABASE_URL', '')
-if db_url.startswith('postgres://'):
-    os.environ['DATABASE_URL'] = db_url.replace('postgres://', 'postgresql://', 1)
-
 from app import create_app
 
 app = create_app()

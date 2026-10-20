@@ -1,58 +1,61 @@
-from datetime import datetime
+from datetime import datetime, timezone
+
+from bson import ObjectId
+from bson.errors import InvalidId
 from flask_login import UserMixin
-from app import db, login_manager
+from pymongo.errors import DuplicateKeyError
+
+from app.db import get_db
 
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+class User(UserMixin):
+    """A user document in the `users` collection."""
+
+    def __init__(self, doc):
+        self.doc = doc
+        self.id = str(doc['_id'])
+        self.email = doc['email']
+        self.password_hash = doc['password_hash']
+        self.created_at = doc.get('created_at')
+
+    @staticmethod
+    def get_by_id(user_id):
+        try:
+            oid = ObjectId(user_id)
+        except (InvalidId, TypeError):
+            return None
+        doc = get_db().users.find_one({'_id': oid})
+        return User(doc) if doc else None
+
+    @staticmethod
+    def get_by_email(email):
+        doc = get_db().users.find_one({'email': email})
+        return User(doc) if doc else None
+
+    @staticmethod
+    def create(email, password_hash):
+        """Insert a new user. Returns None if the email is already taken."""
+        doc = {
+            'email': email,
+            'password_hash': password_hash,
+            'created_at': datetime.now(timezone.utc),
+        }
+        try:
+            result = get_db().users.insert_one(doc)
+        except DuplicateKeyError:
+            return None
+        doc['_id'] = result.inserted_id
+        return User(doc)
 
 
-class User(UserMixin, db.Model):
-    __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+class FinancialProfile:
+    """Wizard submissions in the `financial_profiles` collection."""
 
-    profiles = db.relationship('FinancialProfile', backref='user', lazy=True)
-    plans = db.relationship('PlanResult', backref='user', lazy=True)
-
-
-class FinancialProfile(db.Model):
-    __tablename__ = 'financial_profiles'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    wizard_data_json = db.Column(db.Text, default='{}')
-
-
-class Goal(db.Model):
-    __tablename__ = 'goals'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    name = db.Column(db.String(200), nullable=False)
-    target_amount = db.Column(db.Float, nullable=False)
-    horizon_years = db.Column(db.Integer, nullable=False)
-    priority = db.Column(db.Integer, default=1)
-
-    user = db.relationship('User', backref=db.backref('goals', lazy=True))
-
-
-class PlanResult(db.Model):
-    __tablename__ = 'plan_results'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    profile_id = db.Column(db.Integer, db.ForeignKey('financial_profiles.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Computed results (stored as JSON)
-    tax_breakdown_json = db.Column(db.Text)
-    surplus_breakdown_json = db.Column(db.Text)
-    allocation_safe_json = db.Column(db.Text)
-    allocation_balanced_json = db.Column(db.Text)
-    allocation_growth_json = db.Column(db.Text)
-    ai_explanation = db.Column(db.Text)
-
-    profile = db.relationship('FinancialProfile', backref=db.backref('results', lazy=True))
+    @staticmethod
+    def create(user_id, wizard_data):
+        doc = {
+            'user_id': ObjectId(user_id),
+            'created_at': datetime.now(timezone.utc),
+            'wizard_data': dict(wizard_data),
+        }
+        return get_db().financial_profiles.insert_one(doc).inserted_id

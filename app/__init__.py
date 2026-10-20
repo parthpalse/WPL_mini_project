@@ -2,24 +2,18 @@ import os
 
 try:
     from flask import Flask
-    from flask_sqlalchemy import SQLAlchemy
     from flask_login import LoginManager
     from flask_wtf.csrf import CSRFProtect
-    from flask_migrate import Migrate
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
 
-    db = SQLAlchemy()
     login_manager = LoginManager()
     csrf = CSRFProtect()
-    migrate = Migrate()
     limiter = Limiter(key_func=get_remote_address)
 except ImportError:
     Flask = None
-    db = None
     login_manager = None
     csrf = None
-    migrate = None
     limiter = None
 
 
@@ -32,17 +26,8 @@ def create_app(config_override=None):
     # Default config
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-prod')
-    db_url = os.environ.get(
-        'DATABASE_URL',
-        f'sqlite:///{os.path.join(basedir, "bankease.db")}'
-    )
-    if db_url:
-        if db_url.startswith('postgres://'):
-            db_url = db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
-        elif db_url.startswith('postgresql://') and not db_url.startswith('postgresql+'):
-            db_url = db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    from app.db import DEFAULT_URI
+    app.config['MONGODB_URI'] = os.environ.get('MONGODB_URI', DEFAULT_URI)
     app.config['CONFIG_DIR'] = os.path.join(basedir, 'config')
 
     # Session Security
@@ -59,8 +44,8 @@ def create_app(config_override=None):
     validate_all_configs(app.config['CONFIG_DIR'])
 
     # Init extensions
-    db.init_app(app)
-    migrate.init_app(app, db)
+    from app.db import init_db
+    init_db(app)
     csrf.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
@@ -71,7 +56,7 @@ def create_app(config_override=None):
     from app.models.models import User
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        return User.get_by_id(user_id)
 
     # Secure Headers
     @app.after_request

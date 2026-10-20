@@ -22,7 +22,7 @@ def app():
         'LOGIN_DISABLED': True,
         'WTF_CSRF_ENABLED': False,
         'SECRET_KEY': 'test-secret',
-        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:'
+        'MONGODB_URI': 'mongomock://localhost/bankease_test'
     })
     return app
 

@@ -1,7 +1,5 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash
 from flask_login import login_required, current_user
-import json
-from app import db
 from app.models.models import FinancialProfile
 
 wizard_bp = Blueprint('wizard', __name__, url_prefix='/wizard')
@@ -48,12 +46,7 @@ def step(step_id):
         if step_id < 5:
             return redirect(url_for('wizard.step', step_id=step_id + 1))
         else:
-            profile = FinancialProfile(
-                user_id=current_user.id,
-                wizard_data_json=json.dumps(wizard_data)
-            )
-            db.session.add(profile)
-            db.session.commit()
+            FinancialProfile.create(current_user.id, wizard_data)
             return redirect(url_for('dashboard.index'))
 
     return render_template(
@@ -88,12 +81,7 @@ def quick():
         }
         session.modified = True
 
-        profile = FinancialProfile(
-            user_id=current_user.id,
-            wizard_data_json=json.dumps(session['wizard_data'])
-        )
-        db.session.add(profile)
-        db.session.commit()
+        FinancialProfile.create(current_user.id, session['wizard_data'])
 
         return redirect(url_for('dashboard.index'))
 

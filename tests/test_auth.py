@@ -1,6 +1,5 @@
 import pytest
-from app import create_app, db
-from app.models.models import User
+from app import create_app
 
 
 @pytest.fixture
@@ -10,13 +9,10 @@ def auth_app():
         'LOGIN_DISABLED': False,
         'WTF_CSRF_ENABLED': False,
         'SECRET_KEY': 'auth-test-secret',
-        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:'
+        'MONGODB_URI': 'mongomock://localhost/bankease_test'
     })
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.session.remove()
-        db.drop_all()
+    yield app
+    app.extensions['mongo_client'].close()
 
 
 @pytest.fixture
@@ -53,3 +49,24 @@ def test_login_invalid_credentials(auth_client):
     assert res.status_code == 200
     html = res.get_data(as_text=True)
     assert 'Please check your login details' in html
+
+
+def test_register_duplicate_email(auth_client):
+    data = {'email': 'dup@example.com', 'password': 'pw12345', 'confirm_password': 'pw12345'}
+    auth_client.post('/auth/register', data=data)
+    auth_client.get('/auth/logout')
+    res = auth_client.post('/auth/register', data=data, follow_redirects=True)
+    assert 'Email address already exists' in res.get_data(as_text=True)
+
+
+def test_quick_wizard_saves_profile(auth_app, auth_client):
+    auth_client.post('/auth/register', data={
+        'email': 'saver@example.com', 'password': 'pw12345', 'confirm_password': 'pw12345'
+    })
+    auth_client.post('/wizard/quick', data={'monthly_income': '80000', 'monthly_rent': '20000'})
+
+    db = auth_app.extensions['mongo_db']
+    user = db.users.find_one({'email': 'saver@example.com'})
+    profile = db.financial_profiles.find_one({'user_id': user['_id']})
+    assert profile is not None
+    assert profile['wizard_data']['income_amount'] == '80000'

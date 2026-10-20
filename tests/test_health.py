@@ -7,7 +7,7 @@ def client():
     app = create_app({
         'TESTING': True,
         'WTF_CSRF_ENABLED': False,
-        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:'
+        'MONGODB_URI': 'mongomock://localhost/bankease_test'
     })
     with app.test_client() as client:
         yield client
