@@ -37,13 +37,17 @@ def serve_spa():
         email_js = json.dumps(current_user.email).replace('<', '\\u003c')
         script = (ACCOUNT_SCRIPT % email_js).encode('utf-8')
         html = html.replace(b'</body>', script + b'</body>', 1)
-    return Response(html, mimetype='text/html')
+    return Response(html, mimetype='text/html', headers={'Cache-Control': 'no-cache'})
 
 
 @spa_bp.route('/assets/<path:filename>')
 def serve_spa_assets(filename):
     """Serve SPA bundled javascript and css chunks."""
-    return send_from_directory(os.path.join(SPA_DIR, 'assets'), filename)
+    response = send_from_directory(os.path.join(SPA_DIR, 'assets'), filename)
+    # Chunks are patched in place under their original hashed names, so browsers
+    # must revalidate (cheap 304s via ETag) instead of trusting a stale cached copy.
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
 
 
 @spa_bp.route('/favicon.ico')
