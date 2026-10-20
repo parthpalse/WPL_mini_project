@@ -41,6 +41,7 @@ def init_db(app):
 def ensure_indexes(database):
     database.users.create_index('email', unique=True)
     database.financial_profiles.create_index('user_id')
+    database.user_data.create_index('user_id', unique=True)
 
 
 def get_db():

@@ -48,6 +48,23 @@ class User(UserMixin):
         return User(doc)
 
 
+class UserData:
+    """Per-user SPA state (profile + goals) in the `user_data` collection."""
+
+    @staticmethod
+    def get(user_id):
+        return get_db().user_data.find_one({'user_id': ObjectId(user_id)}) or {}
+
+    @staticmethod
+    def save(user_id, **fields):
+        """Upsert top-level fields, e.g. save(uid, profile={...}) or save(uid, goals=[...])."""
+        get_db().user_data.update_one(
+            {'user_id': ObjectId(user_id)},
+            {'$set': {**fields, 'updated_at': datetime.now(timezone.utc)}},
+            upsert=True,
+        )
+
+
 class FinancialProfile:
     """Wizard submissions in the `financial_profiles` collection."""
 

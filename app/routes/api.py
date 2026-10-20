@@ -9,13 +9,20 @@ Endpoints:
   GET  /api/market          - Live market indices and currency rates
   GET  /api/goals           - User goals and savings progress
   POST /api/goals           - Add or update a goal
+  PUT  /api/goals           - Replace the whole goals list
   POST /api/assistant/chat  - AI financial guidance grounded in engine math
+
+All endpoints require login; profile and goals are stored per user in MongoDB.
 """
 
+import copy
 import uuid
 from decimal import Decimal
 from flask import Blueprint, jsonify, request, session
+from flask_login import current_user, login_required
 from app.market.finnhub_client import get_quote
+from app.models.models import UserData
+from app.llm.chat import chat_sync, is_configured
 
 from app.engine.max_investment import calculate_surplus
 from app.engine.money import to_decimal, round_inr, format_inr
@@ -52,8 +59,36 @@ DEFAULT_GOALS = [
 ]
 
 
+MAX_GOALS = 50
+
+
+@api_bp.before_request
+@login_required
+def _require_login():
+    pass
+
+
+def _load(key: str, default):
+    """Read a per-user value from MongoDB (session fallback when LOGIN_DISABLED in tests)."""
+    if current_user.is_authenticated:
+        value = UserData.get(current_user.id).get(key)
+        return value if value is not None else copy.deepcopy(default)
+    return session.get(key, default)
+
+
+def _store(key: str, value) -> None:
+    if current_user.is_authenticated:
+        UserData.save(current_user.id, **{key: value})
+    else:
+        session[key] = value
+        session.modified = True
+
+
 def _get_active_profile() -> dict:
-    return session.get('profile', DEFAULT_PROFILE)
+    default = DEFAULT_PROFILE
+    if current_user.is_authenticated:
+        default = {**DEFAULT_PROFILE, "name": current_user.email.split('@')[0]}
+    return _load('profile', default)
 
 
 def _compute_profile_financials(profile: dict) -> dict:
@@ -91,8 +126,7 @@ def save_profile():
     data = request.get_json(silent=True) or {}
     profile = _get_active_profile().copy()
     profile.update(data)
-    session['profile'] = profile
-    session.modified = True
+    _store('profile', profile)
     return jsonify(profile)
 
 
@@ -129,9 +163,7 @@ def get_cashflow():
 
 # ── Allocation Endpoint ───────────────────────────────────────────────────────
 
-@api_bp.route('/allocation', methods=['GET'])
-def get_allocation():
-    profile = _get_active_profile()
+def _allocation_for(profile: dict) -> list:
     risk = str(profile.get('riskProfile', 'moderate')).lower()
 
     if risk in ('conservative', 'safe', 'low'):
@@ -155,8 +187,12 @@ def get_allocation():
             {"id": "gold", "label": "Gold", "percent": 10},
             {"id": "ppf", "label": "PPF / EPF", "percent": 15}
         ]
+    return allocations
 
-    return jsonify(allocations)
+
+@api_bp.route('/allocation', methods=['GET'])
+def get_allocation():
+    return jsonify(_allocation_for(_get_active_profile()))
 
 
 # ── Projection Endpoint ───────────────────────────────────────────────────────
@@ -226,14 +262,13 @@ def get_market():
 
 @api_bp.route('/goals', methods=['GET'])
 def get_goals():
-    goals = session.get('goals', DEFAULT_GOALS)
-    return jsonify(goals)
+    return jsonify(_load('goals', DEFAULT_GOALS))
 
 
 @api_bp.route('/goals', methods=['POST'])
 def save_goal():
     data = request.get_json(silent=True) or {}
-    goals = session.get('goals', list(DEFAULT_GOALS)).copy()
+    goals = list(_load('goals', DEFAULT_GOALS))
     if 'id' in data:
         # update existing
         goals = [g if g.get('id') != data['id'] else {**g, **data} for g in goals]
@@ -241,9 +276,17 @@ def save_goal():
         # create new
         data['id'] = f"g{len(goals) + 1}"
         goals.append(data)
-    session['goals'] = goals
-    session.modified = True
-    return jsonify(goals)
+    _store('goals', goals[:MAX_GOALS])
+    return jsonify(goals[:MAX_GOALS])
+
+
+@api_bp.route('/goals', methods=['PUT'])
+def replace_goals():
+    data = request.get_json(silent=True)
+    if not isinstance(data, list) or not all(isinstance(g, dict) for g in data):
+        return jsonify({"error": "Expected a list of goals."}), 400
+    _store('goals', data[:MAX_GOALS])
+    return jsonify(data[:MAX_GOALS])
 
 
 # ── AI Assistant Endpoint ─────────────────────────────────────────────────────
@@ -251,8 +294,8 @@ def save_goal():
 @api_bp.route('/assistant/chat', methods=['POST'])
 def chat():
     body = request.get_json(silent=True) or {}
-    messages = body.get('messages', [])
-    last_msg = messages[-1].get('content', '') if messages else ''
+    messages = [m for m in body.get('messages', []) if isinstance(m, dict)]
+    last_msg = str(messages[-1].get('content', '')).strip() if messages else ''
     
     fin = _compute_profile_financials(_get_active_profile())
     profile = _get_active_profile()
@@ -277,6 +320,34 @@ def chat():
         f"With your **{risk.capitalize()}** risk profile, allocating 50% to Equity Mutual Funds, 25% to Debt Funds, "
         f"and 25% across Gold and PPF gives a resilient, inflation-beating portfolio."
     )
+
+    # Answer the actual question with the open-source LLM, grounded in the same
+    # engine numbers. The deterministic summary above is the fallback.
+    if last_msg and is_configured():
+        history = [
+            {"role": m["role"], "content": str(m.get("content", ""))[:2000]}
+            for m in messages[:-1]
+            if m.get("role") in ("user", "assistant")
+        ]
+        allocation_summary = " | ".join(
+            f"{a['label']}: {a['percent']}% (₹{surplus * a['percent'] / 100:,.0f})"
+            for a in _allocation_for(profile)
+        )
+        result = chat_sync(last_msg, history, {
+            "monthly_surplus": surplus,
+            "net_monthly_income": in_hand,
+            "total_monthly_expenses": expenses + emis,
+            "emergency_fund_monthly": float(profile.get('emergencyMonthlyContribution', 0)),
+            "safety_buffer_monthly": 0,
+            "risk_profile": risk,
+            "surplus_is_positive": surplus > 0,
+        }, allocation_summary=allocation_summary)
+        answer = result["response"].strip()
+        if answer and "⚠️" not in answer:  # stream_chat marks provider errors with ⚠️
+            reply = answer
+            if result["guardrail_warnings"]:
+                reply += ("\n\n_Note: Some numbers in this response could not be verified against "
+                          "your plan data. Please cross-check with the figures on your dashboard._")
 
     return jsonify({
         "id": str(uuid.uuid4()),

@@ -58,6 +58,13 @@ def create_app(config_override=None):
     def load_user(user_id):
         return User.get_by_id(user_id)
 
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        from flask import request, jsonify, redirect, url_for
+        if request.path.startswith(('/api/', '/chat/')):
+            return jsonify({'error': 'Login required'}), 401
+        return redirect(url_for('auth.login'))
+
     # Secure Headers
     @app.after_request
     def add_security_headers(response):

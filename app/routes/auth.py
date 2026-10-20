@@ -8,7 +8,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard.index'))
+        return redirect(url_for('spa.serve_spa'))
     
     if request.method == 'POST':
         email = request.form.get('email')
@@ -22,14 +22,14 @@ def login():
             return redirect(url_for('auth.login'))
 
         login_user(user, remember=remember)
-        return redirect(url_for('dashboard.index'))
+        return redirect(url_for('spa.serve_spa'))
 
     return render_template('auth/login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard.index'))
+        return redirect(url_for('spa.serve_spa'))
 
     if request.method == 'POST':
         email = request.form.get('email')
@@ -52,7 +52,7 @@ def register():
             return redirect(url_for('auth.register'))
 
         login_user(new_user)
-        return redirect(url_for('dashboard.index'))
+        return redirect(url_for('spa.serve_spa'))
 
     return render_template('auth/register.html')
 
