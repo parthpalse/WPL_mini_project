@@ -52,6 +52,19 @@ DEFAULT_PROFILE = {
     "riskProfile": "moderate"
 }
 
+# A new account starts empty; the user fills in Financial Profile first.
+EMPTY_PROFILE = {
+    "name": "",
+    "monthlyGrossIncome": 0,
+    "monthlyTax": 0,
+    "expenses": [],
+    "debts": [],
+    "emergencyFundCurrent": 0,
+    "emergencyFundTargetMonths": 6,
+    "emergencyMonthlyContribution": 0,
+    "riskProfile": "moderate"
+}
+
 DEFAULT_GOALS = [
     {"id": "g1", "title": "Home down payment", "target": 2500000, "saved": 640000, "deadline": "2030-03"},
     {"id": "g2", "title": "Child education", "target": 3000000, "saved": 210000, "deadline": "2038-06"},
@@ -87,8 +100,12 @@ def _store(key: str, value) -> None:
 def _get_active_profile() -> dict:
     default = DEFAULT_PROFILE
     if current_user.is_authenticated:
-        default = {**DEFAULT_PROFILE, "name": current_user.email.split('@')[0]}
+        default = {**EMPTY_PROFILE, "name": current_user.email.split('@')[0]}
     return _load('profile', default)
+
+
+def _get_goals() -> list:
+    return _load('goals', [] if current_user.is_authenticated else DEFAULT_GOALS)
 
 
 def _compute_profile_financials(profile: dict) -> dict:
@@ -136,6 +153,9 @@ def save_profile():
 def get_cashflow():
     fin = _compute_profile_financials(_get_active_profile())
     base_income = fin['gross_monthly']
+    if base_income <= 0:  # no profile yet: don't invent a history
+        return jsonify([{"month": m, "income": 0, "expenses": 0, "savings": 0}
+                        for m in ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']])
     base_expenses = fin['total_expenses'] + fin['total_emis']
     base_savings = max(0.0, fin['in_hand'] - base_expenses)
 
@@ -200,7 +220,7 @@ def get_allocation():
 @api_bp.route('/projection', methods=['GET'])
 def get_projection():
     fin = _compute_profile_financials(_get_active_profile())
-    monthly_sip = max(1000.0, fin['surplus'])
+    monthly_sip = fin['surplus']
 
     years = [0, 2, 4, 6, 8, 10, 12, 15]
     projections = []
@@ -262,13 +282,13 @@ def get_market():
 
 @api_bp.route('/goals', methods=['GET'])
 def get_goals():
-    return jsonify(_load('goals', DEFAULT_GOALS))
+    return jsonify(_get_goals())
 
 
 @api_bp.route('/goals', methods=['POST'])
 def save_goal():
     data = request.get_json(silent=True) or {}
-    goals = list(_load('goals', DEFAULT_GOALS))
+    goals = list(_get_goals())
     if 'id' in data:
         # update existing
         goals = [g if g.get('id') != data['id'] else {**g, **data} for g in goals]

@@ -37,7 +37,8 @@ def test_spa_and_api_require_login(client):
 
 
 def test_login_lands_on_spa_with_account_bar(client):
-    _register(client)
+    res = client.post('/auth/register', data={'email': 'asha@example.com', 'password': 'pw12345', 'confirm_password': 'pw12345'})
+    assert res.headers['Location'] == '/profile'  # new accounts go set up their profile first
     res = client.get('/auth/login')
     assert res.headers['Location'] == '/'
     html = client.get('/profile').get_data(as_text=True)
@@ -56,11 +57,12 @@ def test_profile_and_goals_persist_per_user(app, client):
     assert doc['profile']['monthlyGrossIncome'] == 99000
     assert [g['title'] for g in doc['goals']] == ['Bike']
 
-    # A second user starts from defaults and can't see the first user's data
+    # A second user starts empty and can't see the first user's data
     client.get('/auth/logout')
     _register(client, 'ravi@example.com')
-    assert client.get('/api/profile').get_json()['monthlyGrossIncome'] == 150000
-    assert 'Bike' not in [g['title'] for g in client.get('/api/goals').get_json()]
+    profile = client.get('/api/profile').get_json()
+    assert profile['monthlyGrossIncome'] == 0 and profile['expenses'] == [] and profile['debts'] == []
+    assert client.get('/api/goals').get_json() == []
 
     # Deleting every goal is saved as an empty list, not reset to defaults
     client.put('/api/goals', json=[])
@@ -96,3 +98,9 @@ def test_assistant_chat_falls_back_when_llm_fails(mock_chat, _configured, client
     _register(client)
     res = client.post('/api/assistant/chat', json={'messages': [{'role': 'user', 'content': 'hi'}]})
     assert 'Net Investable Surplus' in res.get_json()['content']
+
+
+def test_new_user_projection_and_cashflow_are_zero(client):
+    _register(client)
+    assert all(p['expected'] == 0 for p in client.get('/api/projection').get_json())
+    assert all(m['income'] == 0 and m['savings'] == 0 for m in client.get('/api/cashflow').get_json())

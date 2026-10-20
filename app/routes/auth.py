@@ -52,7 +52,7 @@ def register():
             return redirect(url_for('auth.register'))
 
         login_user(new_user)
-        return redirect(url_for('spa.serve_spa'))
+        return redirect('/profile')  # new accounts start empty: set up the financial profile first
 
     return render_template('auth/register.html')
 
