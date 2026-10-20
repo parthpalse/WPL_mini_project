@@ -1,5 +1,5 @@
 /**
- * BankEase Chat Widget — streaming SSE-powered Claude Haiku assistant.
+ * BankEase Chat Widget — streaming SSE-powered open-source LLM assistant.
  *
  * Architecture:
  *   - Reads engine data from #engine-data JSON block (already on dashboard)
@@ -265,7 +265,7 @@
             <div class="chat-header">
                 <div class="chat-header-title">
                     🤖 BankEase AI
-                    <span class="model-badge">Claude Haiku</span>
+                    <span class="model-badge">Open-source AI</span>
                 </div>
                 <button class="chat-close" aria-label="Close chat" title="Close">&times;</button>
             </div>
@@ -549,7 +549,7 @@
             const resp = await fetch('/chat/health');
             const data = await resp.json();
             if (data.status === 'no_api_key') {
-                console.info('BankEase Chat: ANTHROPIC_API_KEY not configured — chat widget hidden.');
+                console.info('BankEase Chat: LLM_API_KEY not configured — chat widget hidden.');
                 return; // FAB never appears
             }
         } catch {

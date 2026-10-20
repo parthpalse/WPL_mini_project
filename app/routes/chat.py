@@ -1,4 +1,4 @@
-"""Chat API routes — Claude Haiku streaming via SSE.
+"""Chat API routes — open-source LLM streaming via SSE.
 
 Endpoints:
   POST /chat/stream  — SSE stream of chat response tokens
@@ -19,7 +19,7 @@ from flask import Blueprint, request, jsonify, Response, stream_with_context, se
 from flask_login import login_required
 from app import limiter
 
-from app.llm.chat import stream_chat, chat_sync, build_allocation_summary, validate_response_numbers, _build_context_block
+from app.llm.chat import LLM_MODEL, is_configured, stream_chat, chat_sync, build_allocation_summary, validate_response_numbers, _build_context_block
 from app.market.finnhub_client import format_market_context
 from app.market.cache import market_cache
 
@@ -154,11 +154,9 @@ def sync():
 
 @chat_bp.route('/health', methods=['GET'])
 def health():
-    """Quick health check — verifies API key is configured."""
-    import os
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    """Quick health check — verifies the LLM provider is configured."""
     return jsonify({
-        "status": "ok" if key else "no_api_key",
-        "model": os.environ.get("CLAUDE_CHAT_MODEL", "claude-3-5-haiku-20241022"),
+        "status": "ok" if is_configured() else "no_api_key",
+        "model": LLM_MODEL,
         "cache_stats": market_cache.stats(),
     })

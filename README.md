@@ -6,7 +6,7 @@ BankEase calculates your maximum sustainable monthly savings/investment capacity
 
 Two AI layers work together:
 - **Ollama** (local, offline) — deterministic financial explanations with strict number verification
-- **Claude Haiku** (Anthropic API) — streaming conversational chatbot grounded in your live plan data + real-time market quotes
+- **Open-source chat LLM** (Llama via local Ollama, or Groq / OpenRouter on the hosted site) — streaming conversational chatbot grounded in your live plan data + real-time market quotes
 
 ---
 
@@ -39,7 +39,7 @@ Two AI layers work together:
 | Charts | Chart.js |
 | Market Data | Finnhub REST API (free tier, 60 calls/min) |
 | AI — Explanations | Ollama (local Llama 3.2 / Mistral with verified fallback) |
-| AI — Chat | Claude 3.5 Haiku (Anthropic API, streaming SSE) |
+| AI — Chat | Open-source LLM (Llama) via any OpenAI-compatible API — Ollama locally, Groq in production (streaming SSE) |
 
 ---
 
@@ -98,7 +98,7 @@ BankEase is pre-configured for **Render** via [`render.yaml`](render.yaml) and [
 5. In **Environment Variables**, set:
    - `MONGODB_URI`: Your MongoDB Atlas connection string.
    - `SECRET_KEY`: A secure random secret string.
-   - `ANTHROPIC_API_KEY`: *(Optional)* For the live chat assistant.
+   - `LLM_API_KEY`: *(Optional)* Free Groq key (https://console.groq.com/keys) for the chat assistant. `LLM_BASE_URL` / `LLM_MODEL` default to Groq + Llama via `render.yaml`; without a key the chat widget is hidden.
    - `FINNHUB_API_KEY`: *(Optional)* For live market quotes.
 6. Click **Create Web Service** to launch your live site!
 
@@ -106,7 +106,7 @@ BankEase is pre-configured for **Render** via [`render.yaml`](render.yaml) and [
 
 ## Test Suite
 
-The test suite contains **72 unit and integration tests** covering:
+The test suite contains **76 unit and integration tests** covering:
 - Dual-regime Indian Tax calculations (FY 2026-27) with Section 87A marginal relief.
 - 10 hand-calculated Golden Scenarios across all income bands (₹3L to ₹1Cr+).
 - Property-based tests via Hypothesis.

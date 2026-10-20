@@ -1,9 +1,10 @@
-"""Claude Haiku chat layer for BankEase financial assistant.
+"""Open-source LLM chat layer for BankEase financial assistant.
 
 Design constraints (speed-first):
-  • Model: Claude 3.5 Haiku — low-latency, high-throughput, $5-friendly.
+  • Provider: any OpenAI-compatible /chat/completions endpoint serving an
+    open-source model — local Ollama (default), Groq, OpenRouter, Hugging Face.
   • Context: lean structured block each turn, NOT full history + full profile.
-  • Streaming: yields tokens via Anthropic's streaming API so the UI shows
+  • Streaming: yields tokens from the provider's SSE stream so the UI shows
     first tokens immediately via SSE.
   • Separation: this module handles conversational chat only; explain.py
     (Ollama) stays untouched for deterministic number explanations.
@@ -23,11 +24,21 @@ import json
 import logging
 from typing import Any, Generator, Optional
 
+import requests
+
 logger = logging.getLogger(__name__)
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL = os.environ.get("CLAUDE_CHAT_MODEL", "claude-3-5-haiku-20241022")
-MAX_TOKENS = int(os.environ.get("CLAUDE_MAX_TOKENS", "512"))
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:11434/v1").rstrip("/")
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
+LLM_MODEL = os.environ.get("LLM_MODEL", "llama3.2")
+MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "512"))
+LLM_TIMEOUT = (10, 60)  # (connect, read) seconds
+
+
+def is_configured() -> bool:
+    """Local endpoints (Ollama) need no key; hosted providers do."""
+    is_local = "localhost" in LLM_BASE_URL or "127.0.0.1" in LLM_BASE_URL
+    return is_local or bool(LLM_API_KEY)
 
 # Maximum chat history turns retained (user + assistant pairs)
 MAX_HISTORY_TURNS = 6
@@ -178,10 +189,10 @@ def stream_chat(
     market_context: str = "",
     allocation_summary: str = "",
 ) -> Generator[str, None, Optional[dict]]:
-    """Stream Claude Haiku response token-by-token.
+    """Stream the LLM response token-by-token.
 
     Yields:
-        str chunks (partial tokens) as they arrive from Anthropic.
+        str chunks (partial tokens) as they arrive from the provider.
 
     Returns (via generator return value):
         dict with {"full_response": str, "guardrail_warnings": list[str]}
@@ -194,14 +205,8 @@ def stream_chat(
             full += chunk
             send_to_client(chunk)
     """
-    if not ANTHROPIC_API_KEY:
-        yield "⚠️ Chat unavailable — ANTHROPIC_API_KEY not configured."
-        return
-
-    try:
-        import anthropic
-    except ImportError:
-        yield "⚠️ Chat unavailable — `anthropic` package not installed. Run: pip install anthropic"
+    if not is_configured():
+        yield "⚠️ Chat unavailable — LLM_API_KEY not configured."
         return
 
     # Build the lean context block
@@ -217,23 +222,46 @@ def stream_chat(
         "content": f"{context_block}\n\n{user_message}",
     })
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    headers = {"Content-Type": "application/json"}
+    if LLM_API_KEY:
+        headers["Authorization"] = f"Bearer {LLM_API_KEY}"
+    payload = {
+        "model": LLM_MODEL,
+        "max_tokens": MAX_TOKENS,
+        "stream": True,
+        "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + messages,
+    }
 
     full_response = ""
     try:
-        with client.messages.stream(
-            model=CLAUDE_MODEL,
-            max_tokens=MAX_TOKENS,
-            system=SYSTEM_PROMPT,
-            messages=messages,
-        ) as stream:
-            for text in stream.text_stream:
-                full_response += text
-                yield text
+        with requests.post(
+            f"{LLM_BASE_URL}/chat/completions",
+            headers=headers,
+            json=payload,
+            stream=True,
+            timeout=LLM_TIMEOUT,
+        ) as resp:
+            resp.raise_for_status()
+            resp.encoding = "utf-8"  # text/event-stream has no charset; requests would assume latin-1
+            for line in resp.iter_lines(decode_unicode=True):
+                if not line or not line.startswith("data:"):
+                    continue
+                data = line[len("data:"):].strip()
+                if data == "[DONE]":
+                    break
+                choices = json.loads(data).get("choices") or [{}]
+                text = (choices[0].get("delta") or {}).get("content") or ""
+                if text:
+                    full_response += text
+                    yield text
 
-    except anthropic.APIError as e:
-        logger.error("Anthropic API error: %s", e)
-        yield f"\n\n⚠️ Chat error: {e.message if hasattr(e, 'message') else str(e)}"
+    except requests.HTTPError as e:
+        logger.error("LLM API error: %s", e)
+        yield f"\n\n⚠️ Chat error: {e.response.status_code} from LLM provider."
+        return
+    except requests.RequestException as e:
+        logger.error("LLM connection error: %s", e)
+        yield "\n\n⚠️ Chat unavailable — could not reach the LLM provider."
         return
     except Exception as e:
         logger.error("Chat stream error: %s", e)
@@ -271,5 +299,5 @@ def chat_sync(
     return {
         "response": full,
         "guardrail_warnings": warnings,
-        "model": CLAUDE_MODEL,
+        "model": LLM_MODEL,
     }
