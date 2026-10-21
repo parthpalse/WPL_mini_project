@@ -64,6 +64,15 @@ class UserData:
             upsert=True,
         )
 
+    @staticmethod
+    def profile_complete(user_id):
+        """True once the user has saved a financial profile with an income."""
+        profile = UserData.get(user_id).get('profile') or {}
+        try:
+            return float(profile.get('monthlyGrossIncome') or 0) > 0
+        except (TypeError, ValueError):
+            return False
+
 
 class FinancialProfile:
     """Wizard submissions in the `financial_profiles` collection."""

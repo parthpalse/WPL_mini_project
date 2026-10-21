@@ -1,7 +1,8 @@
 import json
 import os
-from flask import Blueprint, Response, send_from_directory
+from flask import Blueprint, Response, redirect, request, send_from_directory
 from flask_login import current_user, login_required
+from app.models.models import UserData
 
 spa_bp = Blueprint('spa', __name__)
 
@@ -19,6 +20,25 @@ var a=document.createElement('a');a.href='/auth/logout';a.textContent='Log out';
 d.appendChild(a);document.body.appendChild(d);}
 add();setInterval(add,1000);})();</script>"""
 
+# Until the financial profile is saved, every client-side navigation is forced to
+# /profile, and the first successful save sends the user on to the report.
+GUARD_SCRIPT = """<script>(function(){window.__beDone=%s;
+function target(u){try{return new URL(u,location.href).pathname}catch(e){return null}}
+['pushState','replaceState'].forEach(function(k){var o=history[k];
+history[k]=function(s,t,u){if(!window.__beDone&&u!=null&&target(u)!=='/profile')u='/profile';return o.call(this,s,t,u);};});
+var f=window.fetch;window.fetch=function(i,o){var p=f.apply(this,arguments);
+if(o&&/^(PUT|POST)$/i.test(o.method||'')&&String(i).indexOf('/api/profile')===0){p.then(function(r){
+if(!r.ok)return;r.clone().json().then(function(d){if(d&&Number(d.monthlyGrossIncome)>0){
+var first=!window.__beDone;window.__beDone=true;var b=document.getElementById('be-setup');if(b)b.remove();
+if(first)setTimeout(function(){window.location.href='/';},800);}}).catch(function(){});}).catch(function(){});}
+return p;};
+function banner(){if(window.__beDone||location.pathname!=='/profile'||!document.body||document.getElementById('be-setup'))return;
+var d=document.createElement('div');d.id='be-setup';
+d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483000;font:14px/1.4 system-ui,sans-serif;background:#111;color:#fff;padding:10px 16px;text-align:center';
+d.textContent='Welcome! Set up your financial profile (at least your monthly income) and press Save to unlock the rest of BankEase.';
+document.body.appendChild(d);}
+banner();setInterval(banner,1000);})();</script>"""
+
 
 @spa_bp.route('/profile')
 @spa_bp.route('/savings')
@@ -31,11 +51,14 @@ add();setInterval(add,1000);})();</script>"""
 @login_required
 def serve_spa():
     """Serve the modern pixel-perfect BankEase SPA (login required)."""
+    done = UserData.profile_complete(current_user.id) if current_user.is_authenticated else True
+    if not done and request.path != '/profile':
+        return redirect('/profile')  # no exceptions: finish the financial profile first
     with open(os.path.join(SPA_DIR, 'index.html'), 'rb') as f:
         html = f.read()
     if current_user.is_authenticated:
         email_js = json.dumps(current_user.email).replace('<', '\\u003c')
-        script = (ACCOUNT_SCRIPT % email_js).encode('utf-8')
+        script = ((ACCOUNT_SCRIPT % email_js) + (GUARD_SCRIPT % ('true' if done else 'false'))).encode('utf-8')
         html = html.replace(b'</body>', script + b'</body>', 1)
     return Response(html, mimetype='text/html', headers={'Cache-Control': 'no-cache'})
 

@@ -40,7 +40,7 @@ def test_login_lands_on_spa_with_account_bar(client):
     res = client.post('/auth/register', data={'email': 'asha@example.com', 'password': 'pw12345', 'confirm_password': 'pw12345'})
     assert res.headers['Location'] == '/profile'  # new accounts go set up their profile first
     res = client.get('/auth/login')
-    assert res.headers['Location'] == '/'
+    assert res.headers['Location'] == '/profile'  # still no saved profile
     html = client.get('/profile').get_data(as_text=True)
     assert 'asha@example.com' in html
     assert '/auth/logout' in html
@@ -104,3 +104,28 @@ def test_new_user_projection_and_cashflow_are_zero(client):
     _register(client)
     assert all(p['expected'] == 0 for p in client.get('/api/projection').get_json())
     assert all(m['income'] == 0 and m['savings'] == 0 for m in client.get('/api/cashflow').get_json())
+
+
+def test_incomplete_profile_forces_profile_page_then_report(client):
+    _register(client)
+    for path in ('/', '/savings', '/planner', '/market', '/assistant', '/goals', '/settings'):
+        res = client.get(path)
+        assert res.status_code == 302 and res.headers['Location'] == '/profile', path
+    assert 'window.__beDone=false' in client.get('/profile').get_data(as_text=True)
+
+    client.put('/api/profile', json={'monthlyGrossIncome': 80000})
+    assert client.get('/savings').status_code == 200
+    assert 'window.__beDone=true' in client.get('/').get_data(as_text=True)
+    assert client.get('/auth/login').headers['Location'] == '/'  # returning user lands on the report
+
+
+def test_login_routes_by_profile_state(client):
+    _register(client, 'new@example.com')
+    client.get('/auth/logout')
+    res = client.post('/auth/login', data={'email': 'new@example.com', 'password': 'pw12345'})
+    assert res.headers['Location'] == '/profile'
+
+    client.put('/api/profile', json={'monthlyGrossIncome': 50000})
+    client.get('/auth/logout')
+    res = client.post('/auth/login', data={'email': 'new@example.com', 'password': 'pw12345'})
+    assert res.headers['Location'] == '/'
