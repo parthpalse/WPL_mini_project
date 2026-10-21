@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:11434/v1").rstrip("/")
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_MODEL = os.environ.get("LLM_MODEL", "llama3.2")
-MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "512"))
+MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "1024"))  # headroom: reasoning models spend tokens thinking
 LLM_TIMEOUT = (10, 60)  # (connect, read) seconds
 
 
@@ -231,6 +231,9 @@ def stream_chat(
         "stream": True,
         "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + messages,
     }
+    if "gpt-oss" in LLM_MODEL:
+        # Reasoning model: keep thinking short so it can't exhaust max_tokens before answering.
+        payload["reasoning_effort"] = "low"
 
     full_response = ""
     try:
