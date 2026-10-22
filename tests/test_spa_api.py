@@ -108,7 +108,7 @@ def test_new_user_projection_and_cashflow_are_zero(client):
 
 def test_incomplete_profile_forces_profile_page_then_report(client):
     _register(client)
-    for path in ('/', '/savings', '/planner', '/market', '/assistant', '/goals', '/settings'):
+    for path in ('/', '/savings', '/planner', '/market', '/assistant', '/goals'):
         res = client.get(path)
         assert res.status_code == 302 and res.headers['Location'] == '/profile', path
     assert 'window.__beDone=false' in client.get('/profile').get_data(as_text=True)

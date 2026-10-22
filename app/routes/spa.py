@@ -49,7 +49,6 @@ banner();setInterval(banner,1000);})();</script>"""
 @spa_bp.route('/market')
 @spa_bp.route('/assistant')
 @spa_bp.route('/goals')
-@spa_bp.route('/settings')
 @spa_bp.route('/')  # registered first (decorators apply bottom-up) so url_for('spa.serve_spa') == '/'
 @login_required
 def serve_spa():
