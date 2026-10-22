@@ -20,6 +20,7 @@ from flask_login import login_required
 from app import limiter
 
 from app.llm.chat import LLM_MODEL, is_configured, stream_chat, chat_sync, build_allocation_summary, validate_response_numbers, _build_context_block
+from app.llm.tax_facts import build_tax_context
 from app.market.finnhub_client import format_market_context
 from app.market.cache import market_cache
 
@@ -79,6 +80,7 @@ def stream():
     # Read market data from cache (never a live call here)
     market_ctx = format_market_context(tickers) if tickers else ""
     alloc_summary = build_allocation_summary(financials.get("allocations", {}))
+    tax_ctx = build_tax_context(message, monthly_outgo=float(financials.get("total_monthly_expenses") or 0), history=history)
 
     def generate():
         """Generator that yields SSE events."""
@@ -90,6 +92,7 @@ def stream():
                 user_financials=financials,
                 market_context=market_ctx,
                 allocation_summary=alloc_summary,
+                tax_context=tax_ctx,
             )
             for chunk in gen:
                 full_response += chunk
@@ -103,7 +106,7 @@ def stream():
             # disclaimer to the stream (matching explain.py's fallback
             # philosophy — never silently serve bad numbers).
             context_block = _build_context_block(
-                financials, market_ctx, alloc_summary
+                financials, market_ctx, alloc_summary, tax_ctx
             )
             warnings = validate_response_numbers(full_response, context_block)
             if warnings:
@@ -140,6 +143,7 @@ def sync():
 
     market_ctx = format_market_context(tickers) if tickers else ""
     alloc_summary = build_allocation_summary(financials.get("allocations", {}))
+    tax_ctx = build_tax_context(message, monthly_outgo=float(financials.get("total_monthly_expenses") or 0), history=history)
 
     result = chat_sync(
         user_message=message,
@@ -147,6 +151,7 @@ def sync():
         user_financials=financials,
         market_context=market_ctx,
         allocation_summary=alloc_summary,
+        tax_context=tax_ctx,
     )
 
     return jsonify(result)

@@ -23,6 +23,7 @@ from flask_login import current_user, login_required
 from app.market.finnhub_client import get_quote
 from app.models.models import UserData
 from app.llm.chat import chat_sync, is_configured
+from app.llm.tax_facts import build_tax_context
 
 from app.engine.max_investment import calculate_surplus
 from app.engine.money import to_decimal, round_inr, format_inr
@@ -361,7 +362,8 @@ def chat():
             "safety_buffer_monthly": 0,
             "risk_profile": risk,
             "surplus_is_positive": surplus > 0,
-        }, allocation_summary=allocation_summary)
+        }, allocation_summary=allocation_summary,
+            tax_context=build_tax_context(last_msg, fin['gross_annual'], expenses + emis, history))
         answer = result["response"].strip()
         if answer and "⚠️" not in answer:  # stream_chat marks provider errors with ⚠️
             reply = answer

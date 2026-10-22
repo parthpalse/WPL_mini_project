@@ -52,9 +52,10 @@ RULES:
 2. Refer to the user's actual surplus, allocations, and live market data from [CONTEXT].
 3. Be concise — aim for 2–4 sentences per response unless the user asks for detail.
 4. No specific stock picks or mutual fund scheme recommendations. Discuss asset classes only.
-5. Format currency in Indian notation (₹1,50,000 / ₹1.5 L).
+5. Format currency in Indian notation with commas (₹1,50,000 / ₹1.5 L), never with spaces between digit groups.
 6. If asked about something outside [CONTEXT], say you don't have that data rather than guessing.
 7. Be warm and educational, not salesy.
+8. For tax questions, answer directly from [TAX RULES] and [TAX CALC] in [CONTEXT]: state the regime, the taxable income, and the tax payable, and say clearly when the tax is zero. Salary is gross income, not taxable income. Never say you need the slabs, they are provided. If the user asks about a different or hypothetical income (a raise), use the take-home and monthly surplus from [TAX CALC], not the current surplus, and give the savings for the number of months asked. Give one clean answer; do not second-guess or restate figures. Do not apply deductions beyond those listed there; mention that the old regime needs 80C/80D etc. to be worth comparing.
 """
 
 
@@ -62,6 +63,7 @@ def _build_context_block(
     user_financials: dict[str, Any],
     market_context: str,
     allocation_summary: str,
+    tax_context: str = "",
 ) -> str:
     """Build the compact [CONTEXT] block injected at the top of each turn.
 
@@ -82,7 +84,7 @@ def _build_context_block(
         f"Status: {status}",
         f"Net income: ₹{income:,.0f}/mo | Expenses: ₹{expenses:,.0f}/mo",
         f"Emergency fund: ₹{ef:,.0f}/mo | Buffer: ₹{buffer:,.0f}/mo",
-        f"Monthly surplus: ₹{abs(surplus):,.0f}/mo ({'investable' if is_positive else 'shortfall'})",
+        f"Current monthly surplus (at the saved profile income): ₹{abs(surplus):,.0f}/mo ({'investable' if is_positive else 'shortfall'})",
         f"Risk profile: {risk}",
     ]
 
@@ -91,6 +93,9 @@ def _build_context_block(
 
     if market_context:
         lines.append(f"Live: {market_context}")
+
+    if tax_context:
+        lines.append(tax_context)
 
     lines.append("[/CONTEXT]")
     return "\n".join(lines)
@@ -147,6 +152,20 @@ def _collect_context_numbers(context_block: str) -> set[float]:
     return numbers
 
 
+# Models often write Indian grouping with spaces ("₹11 25 000", sometimes narrow no-break
+# spaces) instead of commas; rejoin those so they are checked as one number.
+_SPACED_GROUPS = re.compile(r"\b\d{1,2}(?:[ ,\u00a0\u202f]\d{2})*[ ,\u00a0\u202f]\d{3}\b")
+
+
+def _join_spaced_digit_groups(text: str) -> str:
+    def _join(m: re.Match) -> str:
+        token = m.group(0)
+        # leave plain comma-grouped numbers alone; only repair ones containing spaces
+        return re.sub(r"[ ,  ]", "", token) if re.search(r"[   ]", token) else token
+
+    return _SPACED_GROUPS.sub(_join, text)
+
+
 def validate_response_numbers(response_text: str, context_block: str) -> list[str]:
     """Cross-check numeric claims in the response against context ground truth.
 
@@ -156,6 +175,7 @@ def validate_response_numbers(response_text: str, context_block: str) -> list[st
     allowed = _collect_context_numbers(context_block)
     if not allowed:
         return []
+    response_text = _join_spaced_digit_groups(response_text)
 
     # Extract numbers from response
     response_nums = re.findall(r'₹?\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]+)?)', response_text)
@@ -188,6 +208,7 @@ def stream_chat(
     user_financials: dict[str, Any],
     market_context: str = "",
     allocation_summary: str = "",
+    tax_context: str = "",
 ) -> Generator[str, None, Optional[dict]]:
     """Stream the LLM response token-by-token.
 
@@ -210,7 +231,7 @@ def stream_chat(
         return
 
     # Build the lean context block
-    context_block = _build_context_block(user_financials, market_context, allocation_summary)
+    context_block = _build_context_block(user_financials, market_context, allocation_summary, tax_context)
 
     # Trim history
     trimmed = _trim_history(history)
@@ -285,6 +306,7 @@ def chat_sync(
     user_financials: dict[str, Any],
     market_context: str = "",
     allocation_summary: str = "",
+    tax_context: str = "",
 ) -> dict[str, Any]:
     """Non-streaming variant — collects the full response and returns it.
 
@@ -292,11 +314,11 @@ def chat_sync(
     """
     full = ""
     result = None
-    gen = stream_chat(user_message, history, user_financials, market_context, allocation_summary)
+    gen = stream_chat(user_message, history, user_financials, market_context, allocation_summary, tax_context)
     for chunk in gen:
         full += chunk
     # Generator return value isn't accessible via for-loop, so we reconstruct
-    context_block = _build_context_block(user_financials, market_context, allocation_summary)
+    context_block = _build_context_block(user_financials, market_context, allocation_summary, tax_context)
     warnings = validate_response_numbers(full, context_block)
 
     return {
