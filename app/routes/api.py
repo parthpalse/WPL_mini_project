@@ -5,7 +5,8 @@ Endpoints:
   PUT  /api/profile         - Save/update profile and recalculate surplus
   GET  /api/cashflow        - 12-month historical & projected cash flow
   GET  /api/allocation      - Optimal asset allocation based on risk profile
-  GET  /api/projection      - Multi-year investment projections
+  GET  /api/projection      - Multi-year investment projections (?monthly=&alloc=equity:50,debt:25)
+  GET  /api/tax-suggestion  - Suggested monthly tax for a monthly gross (?monthlyGross=)
   GET  /api/market          - Live market indices and currency rates
   GET  /api/goals           - User goals and savings progress
   POST /api/goals           - Add or update a goal
@@ -17,6 +18,7 @@ All endpoints require login; profile and goals are stored per user in MongoDB.
 
 import copy
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from flask import Blueprint, jsonify, request, session
 from flask_login import current_user, login_required
@@ -28,6 +30,7 @@ from app.llm.tax_facts import build_tax_context
 from app.engine.max_investment import calculate_surplus
 from app.engine.money import to_decimal, round_inr, format_inr
 from app.engine.inflation import calculate_sip_future_value
+from app.engine.tax_suggestion import suggest_monthly_tax
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -218,31 +221,70 @@ def get_allocation():
 
 # ── Projection Endpoint ───────────────────────────────────────────────────────
 
+# Assumed annual return (%) per allocation bucket: (conservative, expected, optimistic).
+# Illustrative planning assumptions, not forecasts.
+BUCKET_RETURNS = {
+    "equity": (8.0, 12.0, 15.0),
+    "debt": (5.0, 7.0, 8.0),
+    "gold": (5.0, 8.0, 10.0),
+    "ppf": (7.1, 7.1, 7.1),
+}
+
+
+def _parse_alloc(raw: str, fallback: list) -> list:
+    """Parse 'equity:50,debt:25' into [(bucket, percent)]; fall back to the risk-based mix."""
+    parsed = []
+    for part in (raw or '').split(','):
+        key, _, pct = part.partition(':')
+        try:
+            value = float(pct)
+        except ValueError:
+            continue
+        if key in BUCKET_RETURNS and value >= 0:
+            parsed.append((key, value))
+    if not parsed or sum(v for _, v in parsed) <= 0:
+        return [(a['id'], float(a['percent'])) for a in fallback]
+    return parsed
+
+
 @api_bp.route('/projection', methods=['GET'])
 def get_projection():
-    fin = _compute_profile_financials(_get_active_profile())
-    monthly_sip = fin['surplus']
+    profile = _get_active_profile()
+    try:
+        monthly_sip = max(0.0, float(request.args['monthly']))
+    except (KeyError, ValueError):
+        monthly_sip = _compute_profile_financials(profile)['surplus']
+    mix = _parse_alloc(request.args.get('alloc', ''), _allocation_for(profile))
+    total = sum(w for _, w in mix)
+    # Blend each scenario's return across the buckets by their weight.
+    rates = [sum(BUCKET_RETURNS[k][i] * w for k, w in mix) / total for i in range(3)]
 
-    years = [0, 2, 4, 6, 8, 10, 12, 15]
     projections = []
-
-    for yr in years:
+    for yr in [0, 2, 4, 6, 8, 10, 12, 15]:
         if yr == 0:
             projections.append({"year": 0, "conservative": 0, "expected": 0, "optimistic": 0})
-        else:
-            months = yr * 12
-            # 8% conservative, 11% expected, 14% optimistic
-            c_val = calculate_sip_future_value(monthly_sip, 8.0, months)['future_value']
-            e_val = calculate_sip_future_value(monthly_sip, 11.0, months)['future_value']
-            o_val = calculate_sip_future_value(monthly_sip, 14.0, months)['future_value']
-            projections.append({
-                "year": yr,
-                "conservative": round(c_val),
-                "expected": round(e_val),
-                "optimistic": round(o_val)
-            })
-
+            continue
+        c_val, e_val, o_val = (calculate_sip_future_value(monthly_sip, r, yr * 12)['future_value'] for r in rates)
+        projections.append({
+            "year": yr,
+            "conservative": round(c_val),
+            "expected": round(e_val),
+            "optimistic": round(o_val),
+        })
     return jsonify(projections)
+
+
+# ── Tax Suggestion Endpoint ───────────────────────────────────────────────────
+
+@api_bp.route('/tax-suggestion', methods=['GET'])
+def get_tax_suggestion():
+    try:
+        monthly_gross = float(request.args.get('monthlyGross', 0))
+    except ValueError:
+        return jsonify({"error": "monthlyGross must be a number."}), 400
+    if monthly_gross < 0 or monthly_gross > 1e9:
+        return jsonify({"error": "monthlyGross is out of range."}), 400
+    return jsonify(suggest_monthly_tax(monthly_gross))
 
 
 # ── Market Endpoint ───────────────────────────────────────────────────────────
@@ -256,27 +298,16 @@ def get_market():
         {"symbol": "HDFCBANK.NS", "name": "HDFC Bank"}
     ]
     
-    market_data = []
-    for t in tickers:
+    def _one(t):
         q = get_quote(t["symbol"])
         if q:
-            market_data.append({
-                "symbol": t["symbol"],
-                "name": t["name"],
-                "value": q.get("current", 0),
-                "changePct": q.get("change_pct", 0),
-                "status": "active"
-            })
-        else:
-            market_data.append({
-                "symbol": t["symbol"],
-                "name": t["name"],
-                "value": 0,
-                "changePct": 0,
-                "status": "error"
-            })
-            
-    return jsonify(market_data)
+            return {"symbol": t["symbol"], "name": t["name"], "value": q.get("current", 0),
+                    "changePct": q.get("change_pct", 0), "status": "ok"}
+        return {"symbol": t["symbol"], "name": t["name"], "value": None, "changePct": None,
+                "status": "unavailable"}
+
+    with ThreadPoolExecutor(max_workers=len(tickers)) as pool:  # quotes are independent network calls
+        return jsonify(list(pool.map(_one, tickers)))
 
 
 # ── Goals Endpoints ───────────────────────────────────────────────────────────

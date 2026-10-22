@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 import requests
 
 from app.market.cache import market_cache
+from app.market.yahoo_client import fetch_quote as _yahoo_quote
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,17 @@ def get_quote(symbol: str) -> dict[str, Any]:
 
     raw = _get("/quote", {"symbol": symbol})
     if not raw or raw.get("c", 0) == 0:
+        # Finnhub's free tier has no Indian exchanges (or no key is set): try the keyless feed.
+        result = _yahoo_quote(symbol)
+        if result:
+            market_cache.set(cache_key, result, ttl=90)
+            market_cache.set(f"{cache_key}:last", result, ttl=6 * 3600)
+            return result
+        stale = market_cache.get(f"{cache_key}:last")  # serve the last good quote rather than a blank card
+        if stale:
+            market_cache.set(cache_key, stale, ttl=30)
+            return stale
+        market_cache.set(cache_key, {}, ttl=30)  # brief negative cache so refreshes don't hammer the feed
         return {}
 
     result = {

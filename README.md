@@ -131,7 +131,7 @@ Last verified end-to-end against the live deployment:
 | AI chat (Groq `openai/gpt-oss-20b`) answers from the user's own figures | ✅ |
 | Automated test suite (`python -m pytest`) | ✅ 85 passed |
 
-Known limits: the free Render tier sleeps when idle; chat replies render as plain text (no markdown); market quotes need a `FINNHUB_API_KEY`. The prebuilt React SPA in `app/static/spa/` ships compiled only (its source is not in this repo), so frontend fixes are patched into the compiled bundle and the account bar / profile-first guard are injected by `app/routes/spa.py`.
+Known limits: the free Render tier sleeps when idle; market quotes come from Finnhub when `FINNHUB_API_KEY` is set, otherwise from Yahoo Finance's unofficial public endpoint (delayed, may rate-limit); the suggested monthly tax assumes a salaried resident under 60 with no deductions beyond the standard deduction. The prebuilt React SPA in `app/static/spa/` ships compiled only (its source is not in this repo), so frontend fixes are patched into the compiled bundle and the account bar / profile-first guard are injected by `app/routes/spa.py`.
 
 ---
 

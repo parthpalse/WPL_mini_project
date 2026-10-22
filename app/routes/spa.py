@@ -8,6 +8,9 @@ spa_bp = Blueprint('spa', __name__)
 
 SPA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'spa'))
 
+# Renders the assistant's Markdown replies (lists, bold, tables) inside chat bubbles.
+MARKDOWN_SCRIPT = '<script src="/static/js/spa-md.js"></script>'
+
 # Small account bar added to the prebuilt SPA (its source isn't in this repo).
 # It is created from script, and re-added if missing, because React hydration
 # replaces the server-rendered document and drops nodes it didn't render.
@@ -58,7 +61,7 @@ def serve_spa():
         html = f.read()
     if current_user.is_authenticated:
         email_js = json.dumps(current_user.email).replace('<', '\\u003c')
-        script = ((ACCOUNT_SCRIPT % email_js) + (GUARD_SCRIPT % ('true' if done else 'false'))).encode('utf-8')
+        script = ((MARKDOWN_SCRIPT) + (ACCOUNT_SCRIPT % email_js) + (GUARD_SCRIPT % ('true' if done else 'false'))).encode('utf-8')
         html = html.replace(b'</body>', script + b'</body>', 1)
     return Response(html, mimetype='text/html', headers={'Cache-Control': 'no-cache'})
 
