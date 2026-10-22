@@ -15,8 +15,8 @@
             --text: #111827;
             --text-muted: #6b7280;
             --border: #e5e7eb;
-            --bg: #f9fafb;
-            --card-bg: #ffffff;
+            --bg: oklch(84.381% 0.08861 184.878);
+            --card-bg: oklch(84.381% 0.08861 184.878);
             --radius: 10px;
             --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
         }
@@ -27,7 +27,7 @@
 
         /* Layout */
         .site-nav {
-            background: #fff;
+            background: oklch(84.381% 0.08861 184.878);
             border-bottom: 1px solid var(--border);
             padding: 0 24px;
             display: flex;
@@ -68,7 +68,7 @@
         input[type="text"], input[type="number"], select, textarea {
             width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
             font-size: 0.95rem; transition: border-color 0.15s, box-shadow 0.15s;
-            background: #fff; color: var(--text);
+            background: oklch(84.381% 0.08861 184.878); color: var(--text);
         }
         input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,86,219,0.15); }
         input.error { border-color: var(--danger); }
@@ -154,7 +154,7 @@
 
         /* Toggle */
         .toggle-group { display: flex; gap: 0; }
-        .toggle-group button { padding: 6px 16px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
+        .toggle-group button { padding: 6px 16px; border: 1px solid var(--border); background: oklch(84.381% 0.08861 184.878); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
         .toggle-group button:first-child { border-radius: 6px 0 0 6px; }
         .toggle-group button:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
         .toggle-group button.active { background: var(--primary); color: #fff; border-color: var(--primary); z-index: 1; }

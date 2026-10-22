@@ -1,11 +1,11 @@
-{% extends "base.html" %}
+{% extends "auth/auth_base.html" %}
 {% block title %}Sign In - BankEase{% endblock %}
 {% block content %}
 <div style="max-width:440px; margin:40px auto;">
     <div class="card" style="padding:32px;">
         <div style="text-align:center; margin-bottom:24px;">
             <div style="font-size:2rem; margin-bottom:6px;">🔐</div>
-            <h2 style="font-size:1.5rem; font-weight:800; color:var(--text);">Sign in to BankEase</h2>
+            <h2 class="auth-title">Sign in to BankEase</h2>
             <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Access your saved financial plans and wealth projections</p>
         </div>
 
@@ -27,5 +27,6 @@
             </div>
         </form>
     </div>
+    {% include "auth/_bg_picker.html" %}
 </div>
 {% endblock %}

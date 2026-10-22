@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=Bangers&display=swap">
+<style>
+    /* Match the main SPA look: paper background, ink borders, hard shadows */
+    :root {
+        --ink: oklch(18% 0 0);
+        --paper: oklch(84.381% 0.08861 184.878);
+        --card-paper: var(--paper);
+        --bg: var(--paper);
+        --card-bg: var(--card-paper);
+        --text: var(--ink);
+        --text-muted: oklch(42% 0.003 85);
+        --border: var(--ink);
+        --primary: var(--ink);
+        --primary-dark: oklch(30% 0 0);
+        --radius: 4px;
+        --shadow: 4px 4px 0 0 var(--ink);
+    }
+    body { font-family: "Archivo", system-ui, sans-serif; background: var(--paper); }
+    .site-nav { background: var(--card-paper); border-bottom: 2px solid var(--ink); box-shadow: none; }
+    .site-nav .brand { color: var(--ink); font-family: "Bangers", system-ui, sans-serif; font-size: 1.6rem; letter-spacing: 0.04em; font-weight: 400; }
+    .site-nav .nav-links a:hover { color: var(--ink); text-decoration: underline; }
+    a { color: var(--ink); }
+    .card { border: 2px solid var(--ink); box-shadow: var(--shadow); }
+    .auth-title { font-family: "Bangers", system-ui, sans-serif; font-weight: 400; letter-spacing: 0.03em; font-size: 2.1rem; line-height: 1.1; color: var(--ink); }
+    input[type="email"], input[type="password"], input[type="text"] {
+        width: 100%; padding: 10px 12px; border: 2px solid var(--ink); border-radius: var(--radius);
+        font: inherit; font-size: 0.95rem; background: var(--paper); color: var(--ink);
+    }
+    input:focus { outline: none; box-shadow: 2px 2px 0 0 var(--ink); }
+    .btn { border: 2px solid var(--ink); border-radius: var(--radius); box-shadow: 2px 2px 0 0 var(--ink); transition: transform .1s, box-shadow .1s; }
+    .btn-primary { background: var(--ink); color: var(--paper); }
+    .btn-primary:hover { background: var(--ink); transform: translate(1px, 1px); box-shadow: 1px 1px 0 0 var(--ink); }
+    .site-nav .btn-primary { color: var(--paper) !important; }
+    .disclaimer-bar { border: 2px solid var(--ink); background: var(--card-paper); color: var(--ink); }
+
+    /* Background colour picker */
+    .bg-picker { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; font-size: 0.8rem; color: var(--text-muted); }
+    .bg-picker button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--ink); cursor: pointer; padding: 0; }
+    .bg-picker button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
+    .bg-picker input[type="color"] { width: 26px; height: 26px; padding: 0; border: 2px solid var(--ink); border-radius: 50%; background: none; cursor: pointer; }
+</style>
+<script>
+    // Apply the saved background before first paint so there is no flash
+    (function () {
+        try {
+            var c = localStorage.getItem('bankease-auth-bg');
+            if (c) document.documentElement.style.setProperty('--paper', c);
+        } catch (e) {}
+    })();
+</script>
+{% endblock %}

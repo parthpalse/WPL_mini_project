@@ -1,0 +1,77 @@
+<div class="bg-picker" role="group" aria-label="Page background colour">
+  <span>Background</span>
+  <button
+    type="button"
+    data-bg="oklch(84.381% 0.08861 184.878)"
+    style="background: oklch(84.381% 0.08861 184.878)"
+    title="Teal"
+    aria-label="Teal"
+    aria-pressed="false"
+  ></button>
+  <button
+    type="button"
+    data-bg="oklch(95% 0.03 85)"
+    style="background: oklch(95% 0.03 85)"
+    title="Cream"
+    aria-label="Cream"
+    aria-pressed="false"
+  ></button>
+  <button
+    type="button"
+    data-bg="oklch(93% 0.004 85)"
+    style="background: oklch(93% 0.004 85)"
+    title="Light grey"
+    aria-label="Light grey"
+    aria-pressed="false"
+  ></button>
+  <button
+    type="button"
+    data-bg="#ffffff"
+    style="background: #ffffff"
+    title="White"
+    aria-label="White"
+    aria-pressed="false"
+  ></button>
+  <input
+    type="color"
+    id="bg-custom"
+    value="#f7f6f3"
+    title="Custom colour"
+    aria-label="Custom colour"
+  />
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var buttons = document.querySelectorAll(".bg-picker button");
+    var custom = document.getElementById("bg-custom");
+    var key = "bankease-auth-bg";
+    function mark(value) {
+      buttons.forEach(function (b) {
+        b.setAttribute("aria-pressed", String(b.dataset.bg === value));
+      });
+    }
+    function apply(value, save) {
+      root.style.setProperty("--paper", value);
+      mark(value);
+      if (save) {
+        try {
+          localStorage.setItem(key, value);
+        } catch (e) {}
+      }
+    }
+    buttons.forEach(function (b) {
+      b.addEventListener("click", function () {
+        apply(b.dataset.bg, true);
+      });
+    });
+    custom.addEventListener("input", function () {
+      apply(custom.value, true);
+    });
+    var saved = null;
+    try {
+      saved = localStorage.getItem(key);
+    } catch (e) {}
+    mark(saved || "oklch(97% 0.006 85)");
+  })();
+</script>
