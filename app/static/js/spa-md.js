@@ -72,7 +72,7 @@
     '.be-md{white-space:normal;word-break:break-word}' +
     '.be-md p{margin:.45em 0}.be-md>:first-child{margin-top:0}.be-md>:last-child{margin-bottom:0}' +
     '.be-md ul,.be-md ol{margin:.45em 0;padding-left:1.25em}.be-md ul{list-style:disc}.be-md ol{list-style:decimal}' +
-    '.be-md li{margin:.2em 0}.be-md code{font-family:ui-monospace,monospace;font-size:.9em;background:rgba(0,0,0,.08);padding:0 .25em}' +
+    '.be-md li{margin:.2em 0}.be-md code{font-family:var(--font-mono,ui-monospace),monospace;font-size:.9em;background:rgba(0,0,0,.08);padding:0 .25em}' +
     '.be-md-scroll{overflow-x:auto;margin:.45em 0}.be-md table{border-collapse:collapse;font-size:.85em}' +
     '.be-md th,.be-md td{border:1px solid currentColor;padding:.2em .5em;text-align:left}';
   (document.head || document.documentElement).appendChild(css);

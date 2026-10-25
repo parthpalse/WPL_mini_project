@@ -2,13 +2,14 @@
 {% block head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=Bangers&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=Archivo+Black&family=Bangers&family=JetBrains+Mono:wght@400;700&display=swap">
 <style>
-    /* Match the main SPA look: paper background, ink borders, hard shadows */
+    /* Match the main SPA look: ink borders, hard shadows, cream panels, comic type */
     :root {
         --ink: oklch(18% 0 0);
-        --paper: oklch(84.381% 0.08861 184.878);
-        --card-paper: var(--paper);
+        --paper: oklch(84.381% 0.08861 184.878); /* page background; the colour picker changes it */
+        --card-paper: oklch(98.5% 0.005 85);     /* the SPA's panel colour */
+        --gray-3: oklch(60% 0.003 85);
         --bg: var(--paper);
         --card-bg: var(--card-paper);
         --text: var(--ink);
@@ -16,32 +17,102 @@
         --border: var(--ink);
         --primary: var(--ink);
         --primary-dark: oklch(30% 0 0);
-        --radius: 4px;
+        --radius: 3px;
         --shadow: 4px 4px 0 0 var(--ink);
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
     }
-    body { font-family: "Archivo", system-ui, sans-serif; background: var(--paper); }
-    .site-nav { background: var(--card-paper); border-bottom: 2px solid var(--ink); box-shadow: none; }
-    .site-nav .brand { color: var(--ink); font-family: "Bangers", system-ui, sans-serif; font-size: 1.6rem; letter-spacing: 0.04em; font-weight: 400; }
-    .site-nav .nav-links a:hover { color: var(--ink); text-decoration: underline; }
+    body { font-family: "Archivo", system-ui, sans-serif; background: var(--paper); color: var(--ink); }
     a { color: var(--ink); }
-    .card { border: 2px solid var(--ink); box-shadow: var(--shadow); }
-    .auth-title { font-family: "Bangers", system-ui, sans-serif; font-weight: 400; letter-spacing: 0.03em; font-size: 2.1rem; line-height: 1.1; color: var(--ink); }
+    :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+    /* Top bar */
+    .site-nav { background: var(--card-paper); border-bottom: 3px solid var(--ink); box-shadow: none; padding: 0 16px; gap: 12px; }
+    .site-nav .brand { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); flex: none; font-size: 1rem; }
+    .site-nav .brand:hover { text-decoration: none; }
+    .brand-mark {
+        display: grid; place-items: center; width: 36px; height: 36px;
+        background: var(--ink); color: var(--card-paper); border: 2px solid var(--ink);
+        box-shadow: 2px 2px 0 0 var(--ink); font-size: 1.25rem; font-weight: 700;
+    }
+    .brand-name { font-family: "Bangers", "Archivo Black", system-ui, sans-serif; font-weight: 400; font-size: 1.9rem; letter-spacing: 0.04em; line-height: 1; }
+    .nav-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .nav-email { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; color: var(--text-muted); }
+
+    /* Buttons (match the SPA's ink-btn / paper-btn) */
+    .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+        padding: 0.6rem 1rem; border: 2px solid var(--ink); border-radius: var(--radius);
+        font-weight: 700; font-size: 0.95rem; line-height: 1.2; text-decoration: none; white-space: nowrap;
+        box-shadow: 2px 2px 0 0 var(--ink); transition: transform 80ms, box-shadow 80ms;
+    }
+    .btn:hover { text-decoration: none; transform: translate(-1px, -1px); }
+    .btn:active { transform: translate(2px, 2px); box-shadow: none; }
+    .btn-primary { background: var(--ink); color: var(--card-paper); }
+    .btn-primary:hover { background: var(--ink); box-shadow: 3px 3px 0 0 var(--gray-3); }
+    .btn-paper { background: var(--card-paper); color: var(--ink); }
+    .btn-paper:hover { box-shadow: var(--shadow); }
+    .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
+
+    /* Page */
+    .auth-wrap { max-width: 440px; margin: 32px auto 0; }
+    .card {
+        background: var(--card-paper); border: 2.5px solid var(--ink); box-shadow: var(--shadow);
+        border-radius: 3px 6px 4px 5px / 5px 3px 6px 4px; padding: 32px;
+    }
+    .auth-center { text-align: center; }
+    .auth-kicker { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-muted); }
+    .auth-title { font-family: "Bangers", "Archivo Black", system-ui, sans-serif; font-weight: 400; letter-spacing: 0.04em; font-size: 2.6rem; line-height: 0.95; margin-top: 4px; }
+    .auth-sub { font-size: 0.9rem; color: var(--text-muted); margin: 6px 0 24px; }
+    .auth-switch { margin-top: 18px; text-align: center; font-size: 0.88rem; color: var(--text-muted); }
+    .auth-switch a { font-weight: 700; color: var(--ink); text-decoration: underline; }
+    .form-group label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.025em; }
     input[type="email"], input[type="password"], input[type="text"] {
         width: 100%; padding: 10px 12px; border: 2px solid var(--ink); border-radius: var(--radius);
-        font: inherit; font-size: 0.95rem; background: var(--paper); color: var(--ink);
+        font: inherit; font-size: 1rem; background: var(--card-paper); color: var(--ink);
     }
-    input:focus { outline: none; box-shadow: 2px 2px 0 0 var(--ink); }
-    .btn { border: 2px solid var(--ink); border-radius: var(--radius); box-shadow: 2px 2px 0 0 var(--ink); transition: transform .1s, box-shadow .1s; }
-    .btn-primary { background: var(--ink); color: var(--paper); }
-    .btn-primary:hover { background: var(--ink); transform: translate(1px, 1px); box-shadow: 1px 1px 0 0 var(--ink); }
-    .site-nav .btn-primary { color: var(--paper) !important; }
-    .disclaimer-bar { border: 2px solid var(--ink); background: var(--card-paper); color: var(--ink); }
+    input:focus { border-color: var(--ink); box-shadow: 2px 2px 0 0 var(--ink); }
+    .btn-full { width: 100%; }
+
+    /* Flash messages */
+    .page-wrap > .flash { max-width: 440px; margin: 24px auto 0; }
+    .flash {
+        display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 2px solid var(--ink);
+        border-radius: var(--radius); background: var(--card-paper); color: var(--ink);
+        box-shadow: 2px 2px 0 0 var(--ink); font-weight: 600;
+    }
+    .flash::before {
+        content: "!"; flex: none; display: grid; place-items: center; width: 22px; height: 22px;
+        background: var(--ink); color: var(--card-paper); border-radius: 2px; font-weight: 800; line-height: 1;
+    }
+    .flash-success::before { content: "✓"; }
+
+    /* Footer note (same wording and style as the SPA) */
+    .auth-disclaimer {
+        margin-top: 48px; padding-top: 12px; border-top: 2px solid var(--ink);
+        font-family: var(--font-mono); font-size: 11px; line-height: 1.6; color: var(--text-muted);
+    }
 
     /* Background colour picker */
-    .bg-picker { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; font-size: 0.8rem; color: var(--text-muted); }
+    .bg-picker { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); }
     .bg-picker button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--ink); cursor: pointer; padding: 0; }
-    .bg-picker button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
-    .bg-picker input[type="color"] { width: 26px; height: 26px; padding: 0; border: 2px solid var(--ink); border-radius: 50%; background: none; cursor: pointer; }
+    .bg-picker button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--card-paper), 0 0 0 4px var(--ink); }
+    .bg-picker input[type="color"] {
+        width: 22px; height: 22px; padding: 0; border: 2px solid var(--ink); border-radius: 50%;
+        background: none; cursor: pointer; overflow: hidden; -webkit-appearance: none; appearance: none;
+    }
+    .bg-picker input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    .bg-picker input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+    .bg-picker input[type="color"]::-moz-color-swatch { border: none; border-radius: 50%; }
+
+    @media (max-width: 480px) {
+        .card { padding: 24px 20px; }
+        .auth-title { font-size: 2.2rem; }
+        .auth-wrap { margin-top: 20px; }
+    }
+    @media (max-width: 380px) {
+        .brand-name { font-size: 1.5rem; }
+        .site-nav { padding: 0 10px; }
+    }
 </style>
 <script>
     // Apply the saved background before first paint so there is no flash
@@ -52,4 +123,23 @@
         } catch (e) {}
     })();
 </script>
+{% endblock %}
+
+{% block nav %}
+<nav class="site-nav" aria-label="Main navigation">
+    <a href="/" class="brand" aria-label="BankEase home"><span class="brand-mark" aria-hidden="true">₹</span><span class="brand-name">BankEase</span></a>
+    <div class="nav-actions">
+        {% if current_user.is_authenticated %}
+            <span class="nav-email" title="{{ current_user.email }}">{{ current_user.email }}</span>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-paper btn-sm">Log out</a>
+        {% else %}
+            {% if request.endpoint != 'auth.login' %}<a href="{{ url_for('auth.login') }}" class="btn btn-paper btn-sm">Log in</a>{% endif %}
+            {% if request.endpoint != 'auth.register' %}<a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Sign up</a>{% endif %}
+        {% endif %}
+    </div>
+</nav>
+{% endblock %}
+
+{% block disclaimer %}
+<p class="auth-disclaimer" role="note">DISCLAIMER: All financial projections are illustrative and not guaranteed. BankEase does not provide investment advice; consult a SEBI-registered adviser before investing.</p>
 {% endblock %}

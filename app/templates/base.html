@@ -162,6 +162,7 @@
     {% block head %}{% endblock %}
 </head>
 <body>
+{% block nav %}
 <nav class="site-nav" aria-label="Main navigation">
     <a href="{{ url_for('wizard.index') }}" class="brand" style="text-decoration:none;">💰 BankEase</a>
     <div class="nav-links" style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
@@ -177,6 +178,7 @@
         {% endif %}
     </div>
 </nav>
+{% endblock %}
 
 <div class="page-wrap">
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -189,12 +191,13 @@
 
     {% block content %}{% endblock %}
 
+    {% block disclaimer %}
     <div class="disclaimer-bar" role="note" aria-label="Disclaimer">
         ⚠️ <strong>Disclaimer:</strong> All projections, returns, and figures shown are <strong>illustrative only</strong> and based on static data snapshots.
         They are <strong>not financial advice</strong>. Please consult a SEBI-registered investment advisor before making financial decisions.
         Data last updated: <span id="data-asof">2026-27</span>.
-        Your data is stored only in your browser session and is never shared.
     </div>
+    {% endblock %}
 </div>
 </body>
 </html>

@@ -1,35 +1,29 @@
 {% extends "auth/auth_base.html" %}
-{% block title %}Create Account - BankEase{% endblock %}
+{% block title %}Create account — BankEase{% endblock %}
 {% block content %}
-<div style="max-width:440px; margin:40px auto;">
-    <div class="card" style="padding:32px;">
-        <div style="text-align:center; margin-bottom:24px;">
-            <div style="font-size:2rem; margin-bottom:6px;">✨</div>
-            <h2 class="auth-title">Create an Account</h2>
-            <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Start planning your financial future with smart math</p>
-        </div>
+<div class="auth-wrap">
+    <div class="card">
+        <p class="auth-kicker">New here?</p>
+        <h1 class="auth-title">Create your account</h1>
+        <p class="auth-sub">Plan your budget, savings and investments in one place. It takes under a minute.</p>
 
         <form action="{{ url_for('auth.register') }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email">
+                <label for="email">Email address</label>
+                <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email" autofocus>
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="new-password">
             </div>
             <div class="form-group" style="margin-bottom:24px;">
-                <label for="confirm_password">Confirm Password</label>
+                <label for="confirm_password">Confirm password</label>
                 <input type="password" id="confirm_password" name="confirm_password" required placeholder="••••••••" autocomplete="new-password">
             </div>
-            <button type="submit" class="btn btn-primary btn-full" style="padding:12px; font-size:1rem; margin-bottom:18px;">
-                Register
-            </button>
-            <div style="text-align:center; font-size:0.88rem; color:var(--text-muted);">
-                Already have an account? <a href="{{ url_for('auth.login') }}" style="font-weight:600;">Sign in</a>
-            </div>
+            <button type="submit" class="btn btn-primary btn-full">Create account</button>
         </form>
+        <p class="auth-switch">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
     </div>
     {% include "auth/_bg_picker.html" %}
 </div>

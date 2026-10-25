@@ -1,0 +1,103 @@
+/* Layout and component rules for the prebuilt BankEase SPA.
+ * The SPA's Tailwind build is compiled and its source isn't in this repo, so classes the
+ * patched bundle needs that the build doesn't contain are defined here (be-* prefix).
+ * Breakpoints match Tailwind's: sm = 40rem, lg = 64rem. */
+
+/* First-paint shell rendered by Flask; React replaces it on load. */
+be-shell {
+  display: block;
+}
+
+/* Keep the end of every page clear of the floating "Ask Ease" button and mobile tab bar. */
+.be-main {
+  padding-bottom: 9rem;
+}
+@media (min-width: 64rem) {
+  .be-main {
+    padding-bottom: 7rem;
+  }
+}
+
+.be-quicknav {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* Pages that unlock once the financial profile is saved. */
+.be-locked {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.be-locked.border-transparent:hover {
+  border-color: transparent;
+}
+
+.be-mt-half {
+  margin-top: 0.125rem;
+}
+
+/* Financial Profile: expense and debt rows stay usable on phones. */
+.be-exp-row {
+  grid-template-columns: minmax(0, 1fr) 6.5rem auto;
+}
+
+.be-debt-head {
+  display: none;
+}
+.be-debt-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name name del"
+    "emi out out";
+}
+.be-debt-row > :nth-child(1) {
+  grid-area: name;
+}
+.be-debt-row > :nth-child(2) {
+  grid-area: emi;
+}
+.be-debt-row > :nth-child(3) {
+  grid-area: out;
+}
+.be-debt-row > :nth-child(4) {
+  grid-area: del;
+}
+.be-debt-row + .be-debt-row {
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 2px dashed var(--ink);
+}
+
+.be-field {
+  display: block;
+  min-width: 0;
+}
+.be-field-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 40rem) {
+  .be-exp-row {
+    grid-template-columns: minmax(0, 1fr) 8rem auto;
+  }
+  .be-debt-head,
+  .be-debt-row {
+    grid-template-columns: minmax(0, 1fr) 6rem 7rem auto;
+    grid-template-areas: "name emi out del";
+  }
+  .be-debt-head {
+    display: grid;
+  }
+  .be-debt-row + .be-debt-row {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .be-field-label {
+    display: none;
+  }
+}

@@ -119,6 +119,21 @@ def test_incomplete_profile_forces_profile_page_then_report(client):
     assert client.get('/auth/login').headers['Location'] == '/'  # returning user lands on the report
 
 
+def test_first_paint_shell_follows_page_and_profile_state(client):
+    _register(client)
+    html = client.get('/profile').get_data(as_text=True)
+    assert 'Welcome to BankEase!' in html
+    assert 'href="/goals"' not in html  # other pages stay locked until the profile is saved
+
+    client.put('/api/profile', json={'monthlyGrossIncome': 80000})
+    html = client.get('/goals').get_data(as_text=True)
+    assert '<title>Goals — BankEase</title>' in html
+    assert 'href="/goals" data-status="active" aria-current="page"' in html
+    assert 'be-locked' not in html and 'Welcome to BankEase!' not in html
+    assert 'Open AI assistant' in html
+    assert 'Open AI assistant' not in client.get('/assistant').get_data(as_text=True)
+
+
 def test_login_routes_by_profile_state(client):
     _register(client, 'new@example.com')
     client.get('/auth/logout')

@@ -129,9 +129,9 @@ Last verified end-to-end against the live deployment:
 | Saving a profile unlocks every page; login then lands on `/` | ✅ |
 | Login without a saved profile lands on `/profile` | ✅ |
 | AI chat (Groq `openai/gpt-oss-20b`) answers from the user's own figures | ✅ |
-| Automated test suite (`python -m pytest`) | ✅ 85 passed |
+| Automated test suite (`python -m pytest`) | ✅ 105 passed |
 
-Known limits: the free Render tier sleeps when idle; market quotes come from Finnhub when `FINNHUB_API_KEY` is set, otherwise from Yahoo Finance's unofficial public endpoint (delayed, may rate-limit); the suggested monthly tax assumes a salaried resident under 60 with no deductions beyond the standard deduction. The prebuilt React SPA in `app/static/spa/` ships compiled only (its source is not in this repo), so frontend fixes are patched into the compiled bundle and the account bar / profile-first guard are injected by `app/routes/spa.py`.
+Known limits: the free Render tier sleeps when idle; market quotes come from Finnhub when `FINNHUB_API_KEY` is set, otherwise from Yahoo Finance's unofficial public endpoint (delayed, may rate-limit); the suggested monthly tax assumes a salaried resident under 60 with no deductions beyond the standard deduction. The prebuilt React SPA in `app/static/spa/` ships compiled only (its source is not in this repo), so frontend fixes are patched into the compiled bundle, with any CSS the compiled build lacks in `app/static/css/spa-ui.css`. `app/routes/spa.py` renders the first-paint shell (`app/templates/spa/shell.html`) and injects the signed-in email and the profile-first guard.
 
 ---
 

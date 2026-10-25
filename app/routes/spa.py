@@ -1,6 +1,7 @@
 import json
 import os
-from flask import Blueprint, Response, redirect, request, send_from_directory
+import re
+from flask import Blueprint, Response, redirect, render_template, request, send_from_directory
 from flask_login import current_user, login_required
 from app.models.models import UserData
 
@@ -8,39 +9,35 @@ spa_bp = Blueprint('spa', __name__)
 
 SPA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'spa'))
 
+# SPA pages in sidebar order: path, sidebar label, mobile tab-bar label (None = menu only), icon.
+# Keep in step with the nav list in the bundle (static/spa/assets/index-*.js).
+PAGES = [
+    {'path': '/', 'label': 'Overview', 'short': 'Overview', 'icon': 'layout-dashboard'},
+    {'path': '/profile', 'label': 'Financial Profile', 'short': 'Profile', 'icon': 'user-round'},
+    {'path': '/savings', 'label': 'Savings Capacity', 'short': 'Savings', 'icon': 'piggy-bank'},
+    {'path': '/planner', 'label': 'Investment Planner', 'short': 'Planner', 'icon': 'chart-line'},
+    {'path': '/market', 'label': 'Market Watch', 'short': None, 'icon': 'activity'},
+    {'path': '/assistant', 'label': 'AI Assistant', 'short': None, 'icon': 'message-circle'},
+    {'path': '/goals', 'label': 'Goals', 'short': 'Goals', 'icon': 'target'},
+]
+TITLES = {page['path']: page['label'] for page in PAGES}
+
 # Renders the assistant's Markdown replies (lists, bold, tables) inside chat bubbles.
 MARKDOWN_SCRIPT = '<script src="/static/js/spa-md.js"></script>'
 
-# Small account bar added to the prebuilt SPA (its source isn't in this repo).
-# It is created from script, and re-added if missing, because React hydration
-# replaces the server-rendered document and drops nodes it didn't render.
-ACCOUNT_SCRIPT = """<script>(function(){var email=%s;function add(){
-if(!document.body||document.getElementById('be-account'))return;
-var d=document.createElement('div');d.id='be-account';
-d.style.cssText='position:fixed;left:12px;bottom:124px;z-index:2147483000;font:12px/1.4 system-ui,sans-serif;background:#111;color:#fff;border-radius:999px;padding:6px 12px;box-shadow:0 2px 8px rgba(0,0,0,.25)';
-d.appendChild(document.createTextNode(email+' \\u00b7 '));
-var a=document.createElement('a');a.href='/auth/logout';a.textContent='Log out';a.style.cssText='color:#fff;text-decoration:underline';
-d.appendChild(a);document.body.appendChild(d);}
-add();setInterval(add,1000);})();</script>"""
-
-# Until the financial profile is saved, every client-side navigation is forced to
-# /profile, and the first successful save sends the user on to the report.
-GUARD_SCRIPT = """<script>(function(){window.__beDone=%s;
+# Account details for the layout, read by the bundle. Until the financial profile is saved,
+# every client-side navigation is forced to /profile, and the first successful save sends
+# the user on to the report. Runs in <head>, before the app's module script.
+CONFIG_SCRIPT = """<script>window.__beEmail=%s;window.__beDone=%s;(function(){
 function target(u){try{return new URL(u,location.href).pathname}catch(e){return null}}
 ['pushState','replaceState'].forEach(function(k){var o=history[k];
 history[k]=function(s,t,u){if(!window.__beDone&&u!=null&&target(u)!=='/profile')u='/profile';return o.call(this,s,t,u);};});
 var f=window.fetch;window.fetch=function(i,o){var p=f.apply(this,arguments);
 if(o&&/^(PUT|POST)$/i.test(o.method||'')&&String(i).indexOf('/api/profile')===0){p.then(function(r){
 if(!r.ok)return;r.clone().json().then(function(d){if(d&&Number(d.monthlyGrossIncome)>0){
-var first=!window.__beDone;window.__beDone=true;var b=document.getElementById('be-setup');if(b)b.remove();
+var first=!window.__beDone;window.__beDone=true;
 if(first)setTimeout(function(){window.location.href='/';},800);}}).catch(function(){});}).catch(function(){});}
-return p;};
-function banner(){if(window.__beDone||location.pathname!=='/profile'||!document.body||document.getElementById('be-setup'))return;
-var d=document.createElement('div');d.id='be-setup';
-d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483000;font:14px/1.4 system-ui,sans-serif;background:#111;color:#fff;padding:10px 16px;text-align:center';
-d.textContent='Welcome! Set up your financial profile (at least your monthly income) and press Save to unlock the rest of BankEase.';
-document.body.appendChild(d);}
-banner();setInterval(banner,1000);})();</script>"""
+return p;};})();</script>"""
 
 
 @spa_bp.route('/profile')
@@ -56,12 +53,15 @@ def serve_spa():
     done = UserData.profile_complete(current_user.id) if current_user.is_authenticated else True
     if not done and request.path != '/profile':
         return redirect('/profile')  # no exceptions: finish the financial profile first
-    with open(os.path.join(SPA_DIR, 'index.html'), 'rb') as f:
+    email = current_user.email if current_user.is_authenticated else ''
+    with open(os.path.join(SPA_DIR, 'index.html'), encoding='utf-8') as f:
         html = f.read()
-    if current_user.is_authenticated:
-        email_js = json.dumps(current_user.email).replace('<', '\\u003c')
-        script = ((MARKDOWN_SCRIPT) + (ACCOUNT_SCRIPT % email_js) + (GUARD_SCRIPT % ('true' if done else 'false'))).encode('utf-8')
-        html = html.replace(b'</body>', script + b'</body>', 1)
+    shell = render_template('spa/shell.html', pages=PAGES, path=request.path, email=email, setup=not done)
+    html = html.replace('<!--be:shell-->', shell, 1)
+    html = re.sub(r'<title>[^<]*</title>', f'<title>{TITLES[request.path]} — BankEase</title>', html, count=1)
+    email_js = json.dumps(email).replace('<', '\\u003c')
+    html = html.replace('</head>', (CONFIG_SCRIPT % (email_js, 'true' if done else 'false')) + '</head>', 1)
+    html = html.replace('</body>', MARKDOWN_SCRIPT + '</body>', 1)
     return Response(html, mimetype='text/html', headers={'Cache-Control': 'no-cache'})
 
 

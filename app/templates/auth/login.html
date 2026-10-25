@@ -1,31 +1,25 @@
 {% extends "auth/auth_base.html" %}
-{% block title %}Sign In - BankEase{% endblock %}
+{% block title %}Log in — BankEase{% endblock %}
 {% block content %}
-<div style="max-width:440px; margin:40px auto;">
-    <div class="card" style="padding:32px;">
-        <div style="text-align:center; margin-bottom:24px;">
-            <div style="font-size:2rem; margin-bottom:6px;">🔐</div>
-            <h2 class="auth-title">Sign in to BankEase</h2>
-            <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Access your saved financial plans and wealth projections</p>
-        </div>
+<div class="auth-wrap">
+    <div class="card">
+        <p class="auth-kicker">Welcome back</p>
+        <h1 class="auth-title">Log in to BankEase</h1>
+        <p class="auth-sub">Pick up your financial plan, savings and wealth projections where you left off.</p>
 
         <form action="{{ url_for('auth.login') }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email">
+                <label for="email">Email address</label>
+                <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email" autofocus>
             </div>
             <div class="form-group" style="margin-bottom:24px;">
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password">
             </div>
-            <button type="submit" class="btn btn-primary btn-full" style="padding:12px; font-size:1rem; margin-bottom:18px;">
-                Sign In
-            </button>
-            <div style="text-align:center; font-size:0.88rem; color:var(--text-muted);">
-                Don't have an account? <a href="{{ url_for('auth.register') }}" style="font-weight:600;">Create one</a>
-            </div>
+            <button type="submit" class="btn btn-primary btn-full">Log in</button>
         </form>
+        <p class="auth-switch">New to BankEase? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
     </div>
     {% include "auth/_bg_picker.html" %}
 </div>
